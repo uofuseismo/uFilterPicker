@@ -1,5 +1,8 @@
+#include <stdexcept>
 #include <string>
-#include <chrono>
+#include <utility>
+#include <memory>
+#include <vector>
 #include "uFilterPicker/options.hpp"
 
 using namespace UFilterPicker;

@@ -1,11 +1,16 @@
-#include <iostream>
 #include <vector>
+#include <utility>
 #include <string>
 #include <algorithm>
+#include <stdexcept>
 #include <memory>
 #include <cmath>
+#ifndef NDEBUG
+#include <cassert>
+#endif
 #include <uSignal/filterRepresentations/finiteImpulseResponse.hpp>
 #include <uSignal/filterImplementations/finiteImpulseResponse.hpp>
+#include <uSignal/vector.hpp>
 #include "uFilterPicker/characteristicFunction.hpp"
 
 using namespace UFilterPicker;
@@ -29,7 +34,7 @@ public:
         // out the contribution of the current sample to the running
         // averages.
         movingAverage.push_back(0); // Don't want to compare current sample
-        USignal::FilterRepresentations::FiniteImpulseResponse<double>
+        const USignal::FilterRepresentations::FiniteImpulseResponse<double>
             firFilter(movingAverage);
         constexpr bool isRealTime{true};
         constexpr auto implementation

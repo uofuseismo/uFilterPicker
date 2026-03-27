@@ -4,6 +4,14 @@
 #include <vector>
 namespace UFilterPicker
 {
+class EnvelopeOptions
+{
+public:
+    /// The filter order.  This will have order + 1 coefficients.
+    int order;
+    /// The beta in the Kaiser FIR window-based filter design.
+    double beta;
+};
 /// @class Envelope
 /// @brief Computes the envelope of a signal by computing the Hilbert transform
 ///        via Type III Hilbert transformer FIR filter then takes the absolute
@@ -16,7 +24,7 @@ public:
     ///                    coefficients.
     /// @param[in] beta    The beta in the Kaiser FIR window-based filter
     ///                    design.
-    explicit Envelope(const int order, const double beta = 8);
+    explicit Envelope(const EnvelopeOptions &options); //const int order, const double beta = 8);
     [[nodiscard]] int getOrder() const;
     /// @result True indicates the class is initialized.
     [[nodiscard]] bool isInitialized() const noexcept;

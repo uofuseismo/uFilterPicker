@@ -38,6 +38,7 @@ public:
     /// @brief Computes the characteristic function according to the
     ///        input signal. 
     [[nodiscard]] std::vector<double> apply(const std::vector<double> &x);
+    [[nodiscard]] std::vector<double> apply(const std::vector<int> &x);
     /// @brief Resets the filters in case of a gap.
     void resetInitialConditions();
 

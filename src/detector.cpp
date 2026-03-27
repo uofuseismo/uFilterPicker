@@ -1,5 +1,4 @@
-#include <iostream>
-#include <thread>
+//#include <iostream>
 #include <cmath>
 #include <vector>
 #ifndef NDEBUG
@@ -64,6 +63,14 @@ Detector::Detector(std::vector<std::unique_ptr<Pipeline>> &&pipelines,
 }
 
 /// Apply
+std::vector<double> Detector::apply(const std::vector<int> &xIn)
+{
+    std::vector<double> x;
+    x.resize(xIn.size());
+    std::copy(xIn.begin(), xIn.end(), x.begin());
+    return apply(x);
+}
+
 std::vector<double> Detector::apply(const std::vector<double> &x)
 {
     std::vector<double> result;

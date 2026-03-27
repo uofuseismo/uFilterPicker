@@ -1,4 +1,8 @@
-#include <iostream>
+#include <utility>
+#include <memory>
+#include <stdexcept>
+#include <cstdint>
+#include <chrono>
 #include <vector>
 #include <cmath>
 #include <uSignal/waterLevelTrigger.hpp>
@@ -25,7 +29,7 @@ public:
                 "onAndOffThreshold.second must be positive");
         }
         constexpr bool realTime{true};
-        USignal::WaterLevelTriggerOptions options{mOnAndOffThreshold};
+        const USignal::WaterLevelTriggerOptions options{mOnAndOffThreshold};
         mWaterLevelThreshold
             = std::make_unique<USignal::WaterLevelTrigger<double>>
               (options, realTime);
@@ -35,7 +39,7 @@ public:
     {
         if (&impl == this){return *this;}
         mOnAndOffThreshold = impl.mOnAndOffThreshold;
-        mWaterLevelThreshold = std::move(mWaterLevelThreshold);
+        mWaterLevelThreshold = std::move(impl.mWaterLevelThreshold);
         mInitialized = impl.mInitialized;
         return *this;
     }   
@@ -167,7 +171,7 @@ ThresholdTrigger::apply(std::vector<double> &&characteristicFunction,
           {
              static_cast<int64_t> (std::round(1000000/packetSamplingRate) )
           };
-    USignal::Vector<double> xIn(std::move(characteristicFunction));
+    USignal::Vector<double> xIn(characteristicFunction); //std::move(characteristicFunction));
     pImpl->mWaterLevelThreshold->setInput(std::move(xIn));
     pImpl->mWaterLevelThreshold->apply();
     const auto yRef = pImpl->mWaterLevelThreshold->getOutputReference();

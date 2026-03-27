@@ -1,3 +1,8 @@
+#include <utility>
+#include <memory>
+#include <cmath>
+#include <stdexcept>
+#include <vector>
 #include "uFilterPicker/envelope.hpp"
 #include <uSignal/vector.hpp>
 #include <uSignal/transforms/hilbert/finiteImpulseResponse.hpp>
@@ -7,13 +12,13 @@ using namespace UFilterPicker;
 class Envelope::EnvelopeImpl
 {
 public:
-    EnvelopeImpl(const int orderIn, const double beta)
+    explicit EnvelopeImpl(const EnvelopeOptions &envelopeOptions) //int orderIn, const double beta)
     {
         USignal::Transforms::Hilbert::FiniteImpulseResponseOptions options;
-        auto order = orderIn;
+        auto order = envelopeOptions.order;
         if (order%2 == 1){order = order + 1;}
         options.setOrder(order);
-        options.setBeta(beta);
+        options.setBeta(envelopeOptions.beta);
         constexpr bool isRealTime{true};
         mTransformer
             = std::make_unique
@@ -36,6 +41,7 @@ public:
         } 
     }
     EnvelopeImpl() = delete;
+    ~EnvelopeImpl() = default;
 //private:
     USignal::Transforms::Hilbert::FiniteImpulseResponseOptions mOptions; 
     std::unique_ptr<
@@ -45,8 +51,8 @@ public:
 };
 
 /// Constructor
-Envelope::Envelope(const int order, const double beta) :
-    pImpl(std::make_unique<EnvelopeImpl> (order, beta))
+Envelope::Envelope(const EnvelopeOptions &options) :
+    pImpl(std::make_unique<EnvelopeImpl> (options))
 {
 }
 
@@ -85,7 +91,7 @@ std::vector<double> Envelope::apply(std::vector<double> &&x)
     }
     std::vector<double> y;
     if (x.empty()){return y;}
-    USignal::Vector<double> xIn(std::move(x));
+    USignal::Vector<double> xIn(x); //std::move(x));
     pImpl->mTransformer->setInput(std::move(xIn));
     pImpl->mTransformer->apply();
     pImpl->transform(&y);

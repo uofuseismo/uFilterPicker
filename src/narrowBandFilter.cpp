@@ -1,20 +1,28 @@
-#include <iostream>
+#include <stdexcept>
+#include <string>
 #include <cmath>
+#include <vector>
+#include <memory>
+#include <utility>
+#include <numbers>
+#include <cmath>
+#include <algorithm>
 #include "uFilterPicker/narrowBandFilter.hpp"
 #include <uSignal/vector.hpp>
 #include <uSignal/filterRepresentations/secondOrderSections.hpp>
 #include <uSignal/filterDesign/infiniteImpulseResponse/digital.hpp>
 #include <uSignal/filterRepresentations/infiniteImpulseResponse.hpp>
-#include <uSignal/filterRepresentations/finiteImpulseResponse.hpp>
-#include <uSignal/filterImplementations/finiteImpulseResponse.hpp>
+//#include <uSignal/filterRepresentations/finiteImpulseResponse.hpp>
+//#include <uSignal/filterImplementations/finiteImpulseResponse.hpp>
 #include <uSignal/filterImplementations/secondOrderSections.hpp>
-#include <uSignal/filterDesign/finiteImpulseResponse/windowBased.hpp>
+//#include <uSignal/filterDesign/finiteImpulseResponse/windowBased.hpp>
 #include <uSignal/filterDesign/response.hpp>
 
 #define REAL_TIME true
 
 using namespace UFilterPicker;
 
+/*
 namespace
 {
 std::chrono::microseconds 
@@ -26,6 +34,7 @@ orderToGroupDelay(const int order, const double samplingRate)
     return std::chrono::microseconds {iGroupDelayMuS};
 }
 }
+*/
 
 class NarrowBandFilter::NarrowBandFilterImpl
 {
@@ -94,13 +103,13 @@ public:
     [[nodiscard]] std::vector<double> computeResponse(
         const std::vector<double> &frequencies) const
     {
+        constexpr double pi{std::numbers::pi_v<double>};
         USignal::Vector<double> normalizedFrequencies(frequencies.size());
-        const double nyquistFrequency{mNominalSamplingRate/2};
         for (int i = 0; i < static_cast<int> (frequencies.size()); ++i)
         {
-            normalizedFrequencies[i] = (frequencies[i]*M_PI)/mNyquistFrequency;
+            normalizedFrequencies[i] = (frequencies[i]*pi)/mNyquistFrequency;
         }
-        USignal::FilterRepresentations::InfiniteImpulseResponse<double>
+        const USignal::FilterRepresentations::InfiniteImpulseResponse<double>
             ba{*mSOSFilterDesign};
         auto h
             = USignal::FilterDesign::Response::computeDigital(
@@ -196,8 +205,8 @@ public:
     NarrowBandFilterImpl& operator=(NarrowBandFilterImpl &&impl) noexcept
     {
         if (&impl == this){return *this;}
-        impl.mSOSFilterDesign = std::move(impl.mSOSFilterDesign);
-        impl.mSOSFilter = std::move(impl.mSOSFilter);
+        mSOSFilterDesign = std::move(impl.mSOSFilterDesign);
+        mSOSFilter = std::move(impl.mSOSFilter);
         //impl.mFIRFilterDesign = std::move(impl.mFIRFilterDesign);
         //impl.mFIRFilter = std::move(impl.mFIRFilter);
         mNominalSamplingRate = impl.mNominalSamplingRate;
@@ -298,9 +307,9 @@ NarrowBandFilter::computeResponse(
     {
         throw std::invalid_argument("At least two frequencies required");
     }
-    double lowFrequency{0};
-    double highFrequency{pImpl->mNyquistFrequency};
-    double df = (highFrequency- lowFrequency)/(nFrequencies - 1);
+    const double lowFrequency{0};
+    const double highFrequency{pImpl->mNyquistFrequency};
+    const double df = (highFrequency- lowFrequency)/(nFrequencies - 1);
     std::vector<double> frequencies(nFrequencies);
     for (int i = 0; i < nFrequencies; ++i)
     {
@@ -438,7 +447,7 @@ std::vector<double> NarrowBandFilter::apply(std::vector<double> &&x)
     }
     std::vector<double> y;
     if (x.empty()){return y;}
-    USignal::Vector<double> xIn(std::move(x));
+    USignal::Vector<double> xIn(x); //std::move(x));
 
     pImpl->mSOSFilter->setInput(std::move(xIn));
     pImpl->mSOSFilter->apply();
