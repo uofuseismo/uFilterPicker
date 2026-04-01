@@ -35,7 +35,7 @@ std::string pack(const T *data, const int nSamples, const bool swapBytes)
     // Pack it up
     union CharacterValueUnion
     {   
-        unsigned char cArray[dataTypeSize];
+        char cArray[dataTypeSize]; // Unpack uses unsigned char so this pushes it
         T value;
     };  
     CharacterValueUnion cvUnion;
@@ -111,7 +111,9 @@ TEST_CASE("UFilterPicker::Utilities", "[toString]")
     identifier.set_channel(channel);
     identifier.set_location_code(locationCode);
 
+    // NOLINTBEGIN
     REQUIRE(UFilterPicker::Utilities::toString(identifier) == "UU.HVU.HHZ.01");
+    // NOLINTEND
 }
 
 TEMPLATE_TEST_CASE("UFilterPicker::Utilities", "[unpackData]",

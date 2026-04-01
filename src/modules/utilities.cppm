@@ -1,11 +1,15 @@
 module;
 #include <cstddef>
 #include <cstdint>
+#include <cctype>
+#include <chrono>
+#include <cmath>
 #include <bit>
 #include <stdexcept>
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <google/protobuf/util/time_util.h>
 #include "uDataPacketServiceAPI/v1/packet.pb.h"
 #include "uDataPacketServiceAPI/v1/stream_identifier.pb.h"
 #include "uDataPacketServiceAPI/v1/data_type.pb.h"
@@ -120,6 +124,38 @@ std::string toString(
               + "." + identifier.location_code();
     std::transform(name.begin(), name.end(), name.begin(), ::toupper);
     return name;
+}
+
+export
+[[nodiscard]]
+std::chrono::microseconds getStartTime(const UDataPacketServiceAPI::V1::Packet &packet)
+{
+    const auto startTime
+        = google::protobuf::util::TimeUtil::TimestampToMicroseconds(packet.start_time());
+    return std::chrono::microseconds {startTime};
+}
+
+export
+[[nodiscard]]
+std::chrono::microseconds getEndTime(const UDataPacketServiceAPI::V1::Packet &packet)
+{
+    const auto nSamples = packet.number_of_samples();
+    if (nSamples < 1){throw std::invalid_argument("No samples");}
+    const auto samplingRate = packet.sampling_rate();
+    if (samplingRate <= 0){throw std::invalid_argument("Sampling rate not positive");}
+    constexpr double SECONDS_TO_NANOSECONDS{1000000000};
+    const double samplingPeriodNanoSeconds
+        = SECONDS_TO_NANOSECONDS/samplingRate;
+    const auto iEndTimeNanoSeconds
+        = static_cast<int64_t> (
+            std::round( (nSamples - 1)*samplingPeriodNanoSeconds ) );
+    const auto endTimeMuS
+        = google::protobuf::util::TimeUtil::NanosecondsToTimestamp(
+             iEndTimeNanoSeconds);
+    const std::chrono::microseconds endTime
+        = getStartTime(packet)
+        + std::chrono::microseconds {iEndTimeNanoSeconds};
+    return endTime;
 }
 
 }

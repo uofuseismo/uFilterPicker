@@ -1,14 +1,78 @@
 //#include <iostream>
 #include <cmath>
 #include <vector>
+#include <chrono>
+#include <utility>
+#include <algorithm>
+#include <stdexcept>
+#include <memory>
 #ifndef NDEBUG
 #include <cassert>
 #endif
 #include <spdlog/spdlog.h>
 #include "uFilterPicker/detector.hpp"
 #include "uFilterPicker/pipeline.hpp"
+#include "uFilterPicker/envelope.hpp"
+#include "uFilterPicker/narrowBandFilter.hpp"
+#include "uFilterPicker/characteristicFunction.hpp"
 
 using namespace UFilterPicker;
+
+namespace
+{
+
+struct Lengths
+{
+    int envelope;
+    int characteristicFunction;
+};
+
+std::unique_ptr<UFilterPicker::Pipeline>
+    createPipeline(const int butterworthOrder,
+                   const std::pair<double, double> &passband,
+                   const Lengths &lengths, //const int envelopeLength,
+                                           //const int characteristicFunctionLength,
+                   const double samplingRate)
+{
+    auto narrowBandFilter
+        = std::make_unique<UFilterPicker::NarrowBandFilter>
+          (butterworthOrder, passband, samplingRate);
+    constexpr double kaiserBeta{8}; // Unused
+    const UFilterPicker::EnvelopeOptions
+        envelopeOptions{lengths.envelope, kaiserBeta};
+    auto envelope
+        = std::make_unique<UFilterPicker::Envelope> (envelopeOptions); //Length);
+    auto characteristicFunction
+        = std::make_unique<UFilterPicker::CharacteristicFunction>
+          (lengths.characteristicFunction);
+    auto pipeline
+        = std::make_unique<UFilterPicker::Pipeline> (std::move(narrowBandFilter),
+                                                     std::move(envelope),
+                                                     std::move(characteristicFunction)); 
+    return pipeline;
+} 
+
+std::unique_ptr<UFilterPicker::Detector>
+    createDetector(const int butterworthOrder,
+                   const std::vector< std::pair<double, double> > &passbands,
+                   const ::Lengths &lengths,
+                   const double samplingRate)
+{
+    std::vector<std::unique_ptr<UFilterPicker::Pipeline>> pipelines;
+    for (const auto &passband : passbands)
+    {
+        auto pipeline = ::createPipeline(butterworthOrder,
+                                         passband,
+                                         lengths,
+                                         samplingRate);
+        pipelines.push_back(std::move(pipeline));
+    }
+    auto detector
+        = std::make_unique<UFilterPicker::Detector> (std::move(pipelines));
+    return detector;
+}
+
+}
 
 class Detector::DetectorImpl
 {
@@ -53,10 +117,12 @@ Detector::Detector(std::vector<std::unique_ptr<Pipeline>> &&pipelines,
     pImpl->mPipelines = std::move(pipelines);
     pImpl->mStrategy = strategy;
     pImpl->mNominalSamplingRate = samplingRate;
-    auto maskDuration 
-        = pImpl->mStartUpDuration.count()*1.e-6*pImpl->mNominalSamplingRate;
+    auto startupDurationSeconds
+        = static_cast<double> (pImpl->mStartUpDuration.count())*1.e-6;
+    auto maskDurationSamples 
+        = startupDurationSeconds*pImpl->mNominalSamplingRate; // s*1/s -> samples
     pImpl->mMaskFirstNSamples
-        = std::max(0, static_cast<int> (std::ceil(maskDuration)));
+        = std::max(0, static_cast<int> (std::ceil(maskDurationSamples)));
     pImpl->mGroupDelay = groupDelay;
     //std::cout << pImpl->mMaskFirstNSamples << std::endl;
     pImpl->mInitialized = true;
@@ -191,3 +257,52 @@ void Detector::resetInitialConditions()
 
 /// Destructor
 Detector::~Detector() = default;
+
+std::unique_ptr<UFilterPicker::Detector>
+    Detector::create100HzBroadband()
+{
+    constexpr int butterworthOrder{5};
+    const std::vector< std::pair<double, double> > passBands
+    {
+                                        { 3 - 1,  8 + 3}, 
+                                        { 8 - 3, 13 + 3}, 
+                                        {13 - 3, 18 + 3}, 
+                                        {18 - 3, 23 + 3}, 
+                                        {23 - 3, 28 + 3}, 
+                                        {28 - 3, 33 + 3}
+    };
+    constexpr int envelopeLength{400};
+    constexpr int characteristicFunctionLength{400};
+    const ::Lengths lengths{envelopeLength, characteristicFunctionLength};
+    constexpr double samplingRate{100};
+    auto detector = ::createDetector(butterworthOrder, //5,
+                                     passBands,
+                                     lengths,
+                                     samplingRate);
+     return detector;
+}
+
+std::unique_ptr<UFilterPicker::Detector>
+    Detector::create40HzBroadband()
+{
+    constexpr int butterworthOrder{5};
+    const std::vector< std::pair<double, double> > passBands
+    {   
+                                        { 3 - 1,  8 + 3}, 
+                                        { 8 - 3, 13 + 3}, 
+                                        {13 - 3, 18 + 3}, 
+                                        {18 - 3, 23 + 3}, 
+                                        {23 - 3, 28 + 3}//,
+                                        //{28 - 3, 33 + 3}
+    };  
+    constexpr int envelopeLength{400};
+    constexpr int characteristicFunctionLength{400};
+    const ::Lengths lengths{envelopeLength, characteristicFunctionLength};
+    constexpr double samplingRate{40};
+    auto detector = ::createDetector(butterworthOrder, //5,
+                                     passBands,
+                                     lengths,
+                                     samplingRate);
+     return detector;
+}
+

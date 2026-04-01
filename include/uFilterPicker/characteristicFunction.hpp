@@ -22,6 +22,9 @@ public:
     void resetInitialConditions();
 
     ~CharacteristicFunction();
+    CharacteristicFunction(const CharacteristicFunction &) = delete;
+    CharacteristicFunction& operator=(const CharacteristicFunction &) = delete;
+     
     CharacteristicFunction() = delete;
 private:
     class CharacteristicFunctionImpl;

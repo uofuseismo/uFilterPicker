@@ -139,25 +139,58 @@ protobuf_generate(TARGET libuFilterPicker
                  )
 
 
-#add_executable(uFilterPicker
-#               src/filterPicker.cpp)
-#set_target_properties(uFilterPicker PROPERTIES
-#                      CXX_STANDARD 23
-#                      CXX_STANDARD_REQUIRED YES 
-#                      CXX_EXTENSIONS NO)
-#target_include_directories(uFilterPicker
-#                           PRIVATE $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
-#                           PRIVATE $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
-#                           PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>)
-#target_link_libraries(uFilterPicker
-#                      PRIVATE uFilterPicker::libuFilterPicker
-#                              spdlog::spdlog_header_only
-#                              gRPC::grpc
-#                              gRPC::grpc++
-#                              gRPC::grpcpp_otel_plugin
-#                              opentelemetry-cpp::metrics
-#                              Boost::program_options
-#                              TBB::tbb)
+add_executable(uFilterPicker
+               src/filterPicker.cpp)
+set_target_properties(uFilterPicker PROPERTIES
+                      CXX_STANDARD 23
+                      CXX_STANDARD_REQUIRED YES 
+                      CXX_EXTENSIONS NO)
+target_include_directories(uFilterPicker
+                           PRIVATE $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+                           PRIVATE $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
+                           PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>)
+target_link_libraries(uFilterPicker
+                      PRIVATE uFilterPicker::libuFilterPicker
+                              spdlog::spdlog_header_only
+                              gRPC::grpc
+                              gRPC::grpc++
+                              Boost::program_options
+                              TBB::tbb)
+if (${WITH_CONAN})
+   target_link_libraries(uFilterPicker
+                         PRIVATE opentelemetry-cpp::opentelemetry-cpp
+                                 opentelemetry-cpp::proto_grpc
+                                 opentelemetry-cpp::exporter_otlp_grpc
+                                 opentelemetry-cpp::exporter_otlp_grpc_client
+                                 opentelemetry-cpp::exporter_otlp_grpc_metrics
+                                 opentelemetry-cpp::exporter_otlp_http 
+                                 opentelemetry-cpp::exporter_otlp_http_client
+                                 opentelemetry-cpp::exporter_otlp_http_metric
+                                 opentelemetry-cpp::exporter_otlp_http_log
+                                 opentelemetry-cpp::metrics
+                                 opentelemetry-cpp::common
+                                 opentelemetry-cpp::api)
+   target_compile_definitions(uFilterPicker PRIVATE WITH_OTLP_GRPC)
+else()
+   target_link_libraries(uFilterPicker
+                         PRIVATE opentelemetry-cpp::otlp_http_log_record_exporter
+                                 opentelemetry-cpp::otlp_http_metric_exporter)
+endif()
+target_sources(uFilterPicker
+               #PUBLIC FILE_SET HEADERS
+               #       BASE_DIRS
+               #          ${CMAKE_CURRENT_SOURCE_DIR}
+               #       FILES
+               #          ${LIBRARY_HEADER_FILES}
+               PUBLIC FILE_SET CXX_MODULES
+                      BASE_DIRS
+                         src/modules
+                      FILES
+                         src/modules/logger.cppm
+                         src/modules/otelSpdlogSink.cppm)
+#                         ${LIBRARY_MODULE_FILES})
+
+
 
 #add_executable(pickProxy src/grpc/pickProxy.cpp)
 #set_target_properties(pickProxy PROPERTIES

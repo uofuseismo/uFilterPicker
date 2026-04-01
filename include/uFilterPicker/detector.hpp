@@ -42,9 +42,16 @@ public:
     /// @brief Resets the filters in case of a gap.
     void resetInitialConditions();
 
+    /// @brief Creates the standard 100 Hz broadband detector.
+    static std::unique_ptr<UFilterPicker::Detector> create100HzBroadband();
+    /// @brief Creates the standard 40 Hz broadband detector.
+    static std::unique_ptr<UFilterPicker::Detector> create40HzBroadband();
+
     /// @brief Destructor.
     ~Detector();
 
+    Detector(const Detector &) = delete;
+    Detector& operator=(const Detector &) = delete;
     Detector() = delete;
 private:
     class DetectorImpl;
