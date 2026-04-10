@@ -11,7 +11,7 @@ public:
 
     void setNominalSamplingRate(double samplingRate);
     [[nodiscard]] double getNominalSamplingRate() const; 
-    [[nodiscard]] bool haveNominalSamplingRate() const noexcept;
+    [[nodiscard]] bool hasNominalSamplingRate() const noexcept;
 
     ~Options();
 private:

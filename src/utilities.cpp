@@ -1,20 +1,17 @@
-module;
 #include <cstddef>
 #include <cstdint>
 #include <cctype>
 #include <chrono>
 #include <cmath>
-#include <bit>
 #include <stdexcept>
 #include <vector>
 #include <string>
 #include <algorithm>
 #include <google/protobuf/util/time_util.h>
+#include "uFilterPicker/utilities.hpp"
 #include "uDataPacketServiceAPI/v1/packet.pb.h"
 #include "uDataPacketServiceAPI/v1/stream_identifier.pb.h"
 #include "uDataPacketServiceAPI/v1/data_type.pb.h"
-
-export module Utilities;
 
 namespace
 {
@@ -68,13 +65,9 @@ std::vector<double>
 
 }
 
-namespace UFilterPicker::Utilities
-{
-
-export
-std::vector<double> toDoubleVector(
+std::vector<double> UFilterPicker::Utilities::toDoubleVector(
     const UDataPacketServiceAPI::V1::Packet &packet,
-    const bool swapBytes = (std::endian::native == std::endian::little ? false : true))
+    const bool swapBytes)
 {
     auto nSamples = packet.number_of_samples();
     std::vector<double> result;
@@ -113,9 +106,8 @@ std::vector<double> toDoubleVector(
     
 }
 
-export
-[[nodiscard]] 
-std::string toString(
+std::string 
+UFilterPicker::Utilities::toString(
     const UDataPacketServiceAPI::V1::StreamIdentifier &identifier)
 {
     auto name = identifier.network() 
@@ -126,18 +118,30 @@ std::string toString(
     return name;
 }
 
-export
-[[nodiscard]]
-std::chrono::microseconds getStartTime(const UDataPacketServiceAPI::V1::Packet &packet)
+template<>
+std::chrono::microseconds 
+UFilterPicker::Utilities::getStartTime(
+    const UDataPacketServiceAPI::V1::Packet &packet)
 {
     const auto startTime
         = google::protobuf::util::TimeUtil::TimestampToMicroseconds(packet.start_time());
     return std::chrono::microseconds {startTime};
 }
 
-export
-[[nodiscard]]
-std::chrono::microseconds getEndTime(const UDataPacketServiceAPI::V1::Packet &packet)
+template<>
+std::chrono::nanoseconds 
+UFilterPicker::Utilities::getStartTime<std::chrono::nanoseconds>(
+    const UDataPacketServiceAPI::V1::Packet &packet)
+{
+    const auto startTime
+        = google::protobuf::util::TimeUtil::TimestampToNanoseconds(packet.start_time());
+    return std::chrono::nanoseconds {startTime};
+}
+
+template<>
+std::chrono::microseconds 
+UFilterPicker::Utilities::getEndTime<std::chrono::microseconds>(
+    const UDataPacketServiceAPI::V1::Packet &packet)
 {
     const auto nSamples = packet.number_of_samples();
     if (nSamples < 1){throw std::invalid_argument("No samples");}
@@ -153,9 +157,93 @@ std::chrono::microseconds getEndTime(const UDataPacketServiceAPI::V1::Packet &pa
         = google::protobuf::util::TimeUtil::NanosecondsToTimestamp(
              iEndTimeNanoSeconds);
     const std::chrono::microseconds endTime
-        = getStartTime(packet)
+        = getStartTime<std::chrono::microseconds> (packet)
         + std::chrono::microseconds {iEndTimeNanoSeconds};
     return endTime;
 }
 
+template<>
+std::chrono::nanoseconds 
+UFilterPicker::Utilities::getEndTime<std::chrono::nanoseconds>(
+    const UDataPacketServiceAPI::V1::Packet &packet)
+{
+    const auto nSamples = packet.number_of_samples();
+    if (nSamples < 1){throw std::invalid_argument("No samples");}
+    const auto samplingRate = packet.sampling_rate();
+    if (samplingRate <= 0){throw std::invalid_argument("Sampling rate not positive");}
+    constexpr double SECONDS_TO_NANOSECONDS{1000000000};
+    const double samplingPeriodNanoSeconds
+        = SECONDS_TO_NANOSECONDS/samplingRate;
+    const auto iEndTimeNanoSeconds
+        = static_cast<int64_t> (
+            std::round( (nSamples - 1)*samplingPeriodNanoSeconds ) );
+    const auto endTimeMuS
+        = google::protobuf::util::TimeUtil::NanosecondsToTimestamp(
+             iEndTimeNanoSeconds);
+    const std::chrono::nanoseconds endTime
+        = getStartTime<std::chrono::nanoseconds> (packet)
+        + std::chrono::nanoseconds {iEndTimeNanoSeconds};
+    return endTime;
 }
+
+bool UFilterPicker::Utilities::consistentSamplingRate(
+    const double nominalSamplingRate,
+    const double packetSamplingRate)
+{
+    if (std::abs(nominalSamplingRate - 100.0) < 1.e-5)
+    {
+        if (std::abs(nominalSamplingRate - packetSamplingRate) > 0.01/2)
+        {
+            return false;
+        }
+        return true;
+    }
+    else if (std::abs(nominalSamplingRate - 200.0) < 1.e-5)
+    {
+        if (std::abs(nominalSamplingRate - packetSamplingRate) > 0.005/2)
+        {
+            return false;
+        }
+        return true;
+    }
+    else if (std::abs(nominalSamplingRate - 250.0) < 1.e-5)
+    {
+        if (std::abs(nominalSamplingRate - packetSamplingRate) > 0.004/2)
+        {
+            return false;
+        }
+        return true;
+    }
+    else if (std::abs(nominalSamplingRate - 500.0) < 1.e-5)
+    {
+        if (std::abs(nominalSamplingRate - packetSamplingRate) > 0.002/2)
+        {
+            return false;
+        }
+        return true;
+    }
+    else if (std::abs(nominalSamplingRate - 1000.0) < 1.e-5)
+    {
+        if (std::abs(nominalSamplingRate - packetSamplingRate) > 0.0001/2)
+        {
+            return false;
+        }
+        return true;
+    }
+    else if (std::abs(nominalSamplingRate - 40.0) < 1.e-5)
+    {
+        if (std::abs(nominalSamplingRate - packetSamplingRate) > 0.025/2)
+        {
+            return false;
+        }
+        return true;
+    }
+    else
+    {
+        throw std::runtime_error("Unhandled nominal sampling rate "
+                               + std::to_string(nominalSamplingRate));
+    }
+    return std::abs(nominalSamplingRate - packetSamplingRate) < 1.e-4;
+}
+
+

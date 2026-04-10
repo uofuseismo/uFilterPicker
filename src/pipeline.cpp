@@ -1,6 +1,14 @@
-#include <iostream>
+#include <cstdint>
+#include <chrono>
+#include <memory>
+#include <utility>
+#include <stdexcept>
 #include <cmath>
+#include <algorithm>
 #include <vector>
+#ifndef NDEBUG
+#include <cassert>
+#endif
 #include "uFilterPicker/pipeline.hpp"
 #include "uFilterPicker/narrowBandFilter.hpp"
 #include "uFilterPicker/envelope.hpp"
@@ -10,21 +18,29 @@ using namespace UFilterPicker;
 
 namespace
 {
-std::chrono::microseconds
-    estimateStartUp(const double df,
-                    const double lowCorner,
-                    const int envelopeOrder,
-                    const int cfOrder)
+struct StartUpParameters
 {
-    auto filterStartUpS = 5./lowCorner; // Give it a few cycles to clear out
-    auto dtMicroSeconds = static_cast<int64_t> (std::round(1000000/df));
-    auto envelopeStartUp = envelopeOrder*dtMicroSeconds; 
-    auto cfStartUp = cfOrder*dtMicroSeconds;
-    std::chrono::microseconds sosStartUp
+    double df; // Sampling rate
+    double lowCorner; // Low corner
+    int envelopeOrder; // Order of envelope
+    int cfOrder;  // Order of characteristic function
+};
+std::chrono::microseconds
+    estimateStartUp(const StartUpParameters &parms)
+                    //const double df,
+                    //const double lowCorner,
+                    //const int envelopeOrder,
+                    //const int cfOrder)
+{
+    auto filterStartUpS = 5./parms.lowCorner; // Give it a few cycles to clear out
+    auto dtMicroSeconds = static_cast<int64_t> (std::round(1000000/parms.df));
+    auto envelopeStartUp = parms.envelopeOrder*dtMicroSeconds; 
+    auto cfStartUp = parms.cfOrder*dtMicroSeconds;
+    const std::chrono::microseconds sosStartUp
     {
         static_cast<int64_t> (std::round(filterStartUpS*1.e6))
     };
-    std::chrono::microseconds firStartUp{cfStartUp + envelopeStartUp};
+    const std::chrono::microseconds firStartUp{cfStartUp + envelopeStartUp};
     return std::max(sosStartUp, firStartUp);
 }
 }
@@ -66,11 +82,19 @@ Pipeline::Pipeline(
     pImpl->mNominalSamplingRate = pImpl->mFilter->getNominalSamplingRate();
     auto lowCorner = pImpl->mFilter->getPassBand().first;
     auto envelopeOrder = pImpl->mEnvelope->getOrder();
+#ifndef NDEBUG
+    assert(envelopeOrder%2 != 0); // Order forced to be even so odd number of coeffs
+#endif
     auto cfOrder = pImpl->mCharacteristicFunction->getWindowLength() - 1;
-    pImpl->mStartUp = ::estimateStartUp(pImpl->mNominalSamplingRate,
-                                        lowCorner,
-                                        envelopeOrder,
-                                        cfOrder);
+    const StartUpParameters startUpParms{pImpl->mNominalSamplingRate,
+                                         lowCorner,
+                                         envelopeOrder,
+                                         cfOrder};
+    pImpl->mStartUp = ::estimateStartUp(startUpParms);
+                                        //pImpl->mNominalSamplingRate,
+                                        //lowCorner,
+                                        //envelopeOrder,
+                                        //cfOrder);
     // The group delay:
     // (1) The IIR filter burns a few samples to get going.  Each cascade
     //     has three coefficients.  But one sample is the `current' sample.
@@ -79,16 +103,18 @@ Pipeline::Pipeline(
     // (3) The characteristic function looks backwards so it doesn't introduce
     //     a delay.
     auto nCascades = pImpl->mFilter->getNumberOfCascades();
-    std::chrono::microseconds approximateFilterGroupDelay
+    const std::chrono::microseconds approximateFilterGroupDelay
     {
         static_cast<int64_t>
             (std::round(1000000*(2*nCascades)/pImpl->mNominalSamplingRate))
     };
-    std::chrono::microseconds envelopeGroupDelay
+    // Filter is symmetric so the group delay is (N - 1)/2*T = (Order)/2/df
+    const double envelopeGroupDelayS
+        = (0.5*envelopeOrder)/pImpl->mNominalSamplingRate;
+    const std::chrono::microseconds envelopeGroupDelay
     {
         static_cast<int64_t>
-            (std::round(1000000*(pImpl->mEnvelope->getOrder()/2)
-                                /pImpl->mNominalSamplingRate))
+            (std::round(1000000*envelopeGroupDelayS)) // to microseconds
     };
     pImpl->mGroupDelay = approximateFilterGroupDelay + envelopeGroupDelay;
     

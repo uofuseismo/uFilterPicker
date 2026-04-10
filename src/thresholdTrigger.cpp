@@ -202,3 +202,13 @@ std::vector<uint8_t> ThresholdTrigger::getOutput() const
     }
     return pImpl->mTriggerSignal;
 }
+
+std::unique_ptr<UFilterPicker::ThresholdTrigger>
+ThresholdTrigger::create100HzBroadband(
+    const std::pair<double, double> &onAndOffThreshold)
+{
+    return std::make_unique<UFilterPicker::ThresholdTrigger>
+           (onAndOffThreshold);
+}
+
+

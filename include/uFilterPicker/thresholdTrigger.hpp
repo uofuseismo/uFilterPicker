@@ -1,5 +1,6 @@
 #ifndef UFILTER_PICKER_THRESHOLD_TRIGGER_HPP
 #define UFILTER_PICKER_THRESHOLD_TRIGGER_HPP
+#include <utility>
 #include <memory>
 #include <vector>
 #include <chrono>
@@ -50,6 +51,8 @@ public:
 
     /// @brief Resets threshold trigger to an unarmed state.
     void resetInitialConditions();
+
+    static std::unique_ptr<UFilterPicker::ThresholdTrigger> create100HzBroadband(const std::pair<double, double> &onAndOffThreshold = std::pair<double, double> {6, 5});
 
     /// @brief Destructor.
     ~ThresholdTrigger();

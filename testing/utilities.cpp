@@ -20,7 +20,7 @@
 #include <catch2/matchers/catch_matchers.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
-import Utilities;
+#include "uFilterPicker/utilities.hpp"
 
 namespace
 {

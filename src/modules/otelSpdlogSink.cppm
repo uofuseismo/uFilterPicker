@@ -3,18 +3,19 @@ module;
  * Copyright The OpenTelemetry Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-
+#include <utility>
+//#include <mutex>
+#include <string>
 #include <opentelemetry/logs/severity.h>
 #include <opentelemetry/logs/provider.h>
 #include <opentelemetry/semconv/code_attributes.h>
 #include <opentelemetry/semconv/incubating/thread_attributes.h>
-#include <opentelemetry/version.h>
-
-#include <spdlog/details/null_mutex.h>
+//#include <opentelemetry/version.h>
+//#include <spdlog/details/null_mutex.h>
+#include <spdlog/details/log_msg.h>
 #include <spdlog/sinks/base_sink.h>
+#include <spdlog/common.h>
 #include <spdlog/version.h>
-
-#include <mutex>
 
 export module OTelSpdLog;
 

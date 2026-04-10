@@ -7,6 +7,7 @@ option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 option(BUILD_TESTS "Compile unit tests" ON)
 option(BUILD_TRAINING "Compile training modules" ON)
 option(WITH_CONAN "Build using Conan" OFF)
+option(BUILD_CONTAINER "Build containerized application" OFF)
 option(USE_CLANG_TIDY "Build using clang-tidy" OFF)
 include(CheckCXXCompilerFlag)
 include(GenerateExportHeader)
@@ -82,7 +83,9 @@ set(LIBRARY_SRC
     src/narrowBandFilter.cpp
     src/pipeline.cpp
     src/thresholdTrigger.cpp
-    src/detector.cpp)
+    src/detector.cpp
+    src/grpcClientOptions.cpp
+    src/utilities.cpp)
 set(IMPORT_PROTO_SRC
     uDataPacketServiceAPI/v1/data_type.proto
     uDataPacketServiceAPI/v1/stream_identifier.proto
@@ -96,14 +99,15 @@ set(LIBRARY_HEADER_FILES
     include/uFilterPicker/detector.hpp
     include/uFilterPicker/envelope.hpp
     include/uFilterPicker/narrowBandFilter.hpp
-    include/uFilterPicker/thresholdTrigger.hpp)
-set(LIBRARY_MODULE_FILES
-    src/modules/utilities.cppm)
+    include/uFilterPicker/thresholdTrigger.hpp
+    include/uFilterPicker/utilities.hpp)
+#set(LIBRARY_MODULE_FILES
+#    src/modules/utilities.cppm)
 
 add_library(libuFilterPicker STATIC ${LIBRARY_SRC} ${IMPORT_PROTO_SRC})
 add_library(uFilterPicker::libuFilterPicker ALIAS libuFilterPicker)
 set_target_properties(libuFilterPicker PROPERTIES
-                      OUTPUT_NAME libuFilterPicker
+                      OUTPUT_NAME uFilterPicker
                       CXX_STANDARD 23
                       CXX_STANDARD_REQUIRED YES 
                       CXX_EXTENSIONS NO)
@@ -122,21 +126,27 @@ target_sources(libuFilterPicker
                       BASE_DIRS
                          ${CMAKE_CURRENT_SOURCE_DIR}
                       FILES
-                         ${LIBRARY_HEADER_FILES}
-               PUBLIC FILE_SET CXX_MODULES
-                      BASE_DIRS
-                         src/modules
-                      FILES
-                         ${LIBRARY_MODULE_FILES})
+                         ${LIBRARY_HEADER_FILES})
+#               PUBLIC FILE_SET CXX_MODULES
+#                      BASE_DIRS
+#                         src/modules
+#                      FILES
+#                         ${LIBRARY_MODULE_FILES})
 protobuf_generate(TARGET libuFilterPicker
                   LANGUAGE cpp 
+                  OUT_VAR PROTO_GENERATED_CXX_FILES
                  )
 protobuf_generate(TARGET libuFilterPicker
                   LANGUAGE grpc
                   PLUGIN "protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>"
                   PLUGIN_OPTIONS generate_mock_code=true
                   GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc
+                  OUT_VAR PROTO_GENERATED_FILES
                  )
+set_source_files_properties(${PROTO_GENERATED_FILES} ${PROTO_GENERATED_CXX_FILES}
+   PROPERTIES
+      SKIP_LINTING ON
+)
 
 
 add_executable(uFilterPicker
@@ -186,7 +196,9 @@ target_sources(uFilterPicker
                       BASE_DIRS
                          src/modules
                       FILES
+                         src/modules/otelOptions.cppm
                          src/modules/logger.cppm
+                         src/modules/filterPickerOptions.cppm
                          src/modules/otelSpdlogSink.cppm)
 #                         ${LIBRARY_MODULE_FILES})
 
@@ -230,6 +242,7 @@ endif()
 if (PROJECT_IS_TOP_LEVEL AND ${BUILD_TESTS})
    add_executable(unitTests
                   testing/utilities.cpp
+                  testing/grpc.cpp
                   uDataPacketServiceAPI/v1/packet.proto)
    set_target_properties(unitTests PROPERTIES
                          CXX_STANDARD 23
