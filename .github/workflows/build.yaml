@@ -17,8 +17,8 @@ env:
 
 jobs:
   build:
-    runs-on: intel/oneapi-basekit:2025.3.2-0-devel-ubuntu24.04
-    #runs-on: ubuntu-24.04
+    #runs-on: intel/oneapi-basekit:2025.3.2-0-devel-ubuntu24.04
+    runs-on: ubuntu-24.04
     #container:
     #  image: docker pull intel/oneapi-basekit:2025.3.2-0-devel-ubuntu24.04
     name: Build on ${{ matrix.distro }} ${{ matrix.arch }}
