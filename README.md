@@ -28,7 +28,7 @@ build-missing downloads and installs missing packages
 Release versions of packages (could set to Debug or other cmake build types)
 
     conan install . --build=missing -s build_type=Release -pr:a=Linux-x86_64-clang-21 --output-folder ./conanBuild
-    cmake --preset conan-release -DWITH_CONAN=ON -DBUILD_TRAINING=OFF
+    cmake --preset conan-release -DWITH_CONAN=ON -DBUILD_TRAINING=OFF -DUSE_CLANG_TIDY=ON -DCLANG_TIDY_EXECUTABLE=clang-tidy-21
     cmake --build --preset conan-release
     ctest --preset conan-release
     cmake --install conanBuild/build/Release
