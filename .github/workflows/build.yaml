@@ -11,6 +11,9 @@ env:
   PROJECT_NAME: uFilterPicker
   CONTAINER_NAME: ufilterpicker
   QUAY_DIRECTORY: ufilterpicker
+  MKL_DIR: /opt/intel/oneapi/mkl/latest/lib/cmake/mkl
+  IPP_DIR: /opt/intel/oneapi/ipp/latest/lib/cmake/ipp
+  TBB_DIR: /opt/intel/oneapi/tbb/latest/lib/cmake/tbb
   BUILD_TYPE: Release
   CXX: /usr/bin/clang++
   CC: /usr/bin/clang
