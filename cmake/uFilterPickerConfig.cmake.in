@@ -1,0 +1,17 @@
+#.rst
+# FinduFilterPicker
+# ---------------------
+#
+# Finds the UUSS filter picker import library.
+#
+# Imported Targets
+# ^^^^^^^^^^^^^^^^
+#
+# ``uFilterPicker_FOUND``
+#   True indicates uFilterPicker was found.
+# ``uFilterPicker::uFilterpIcker``
+#   The filter picker library, if found.
+
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Targets.cmake")
