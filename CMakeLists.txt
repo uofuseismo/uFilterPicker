@@ -46,7 +46,7 @@ if (${BUILD_TRAINING})
    find_package(GeographicLib REQUIRED)
    find_package(HDF5 NAMES hdf5 hdf5_cpp COMPONENTS C CXX REQUIRED)
 endif()
-if (${BUILD_TRAINING} OR ${BUILD_TESTS})
+if (${BUILD_TRAINING})
    find_package(libmseed REQUIRED)
    FetchContent_Declare(libmseed 
                         GIT_REPOSITORY https://github.com/EarthScope/libmseed.git
