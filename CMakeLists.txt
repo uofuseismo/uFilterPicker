@@ -150,7 +150,8 @@ set_source_files_properties(${PROTO_GENERATED_FILES} ${PROTO_GENERATED_CXX_FILES
 
 
 add_executable(uFilterPicker
-               src/filterPicker.cpp)
+               src/filterPicker.cpp
+               src/grpcClient.cpp)
 set_target_properties(uFilterPicker PROPERTIES
                       CXX_STANDARD 23
                       CXX_STANDARD_REQUIRED YES 
