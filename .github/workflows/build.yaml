@@ -11,15 +11,19 @@ env:
   PROJECT_NAME: uFilterPicker
   CONTAINER_NAME: ufilterpicker
   QUAY_DIRECTORY: ufilterpicker
+  MKL_DIR: /opt/intel/oneapi/mkl/latest/lib/cmake/mkl
+  IPP_DIR: /opt/intel/oneapi/ipp/latest/lib/cmake/ipp
+  TBB_DIR: /opt/intel/oneapi/tbb/latest/lib/cmake/tbb
   BUILD_TYPE: Release
   CXX: /usr/bin/clang++
   CC: /usr/bin/clang
 
 jobs:
   build:
+    #runs-on: intel/oneapi-basekit:2025.3.2-0-devel-ubuntu24.04
     runs-on: ubuntu-24.04
-    container:
-      image: docker pull intel/oneapi-basekit:2025.3.2-0-devel-ubuntu24.04
+    #container:
+    #  image: docker pull intel/oneapi-basekit:2025.3.2-0-devel-ubuntu24.04
     name: Build on ${{ matrix.distro }} ${{ matrix.arch }}
     #strategy:
     #  fail-fast: false
