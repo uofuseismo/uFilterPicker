@@ -132,11 +132,11 @@ target_sources(libuFilterPicker
 #                         src/modules
 #                      FILES
 #                         ${LIBRARY_MODULE_FILES})
-protobuf_generate(TARGET libuFilterPicker
+protobuf_generate(TARGET libuFilterPicker uFilterPicker
                   LANGUAGE cpp 
                   OUT_VAR PROTO_GENERATED_CXX_FILES
                  )
-protobuf_generate(TARGET libuFilterPicker
+protobuf_generate(TARGET libuFilterPicker uFilterPicker
                   LANGUAGE grpc
                   PLUGIN "protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>"
                   PLUGIN_OPTIONS generate_mock_code=true
