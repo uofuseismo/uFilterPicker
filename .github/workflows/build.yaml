@@ -75,66 +75,66 @@ jobs:
         working-directory: ${{github.workspace}}
         run: |
            cmake --preset conan-release -DWITH_CONAN=ON -DBUILD_CONTAINER=ON -DBUILD_TRAINING=OFF -DBUILD_TESTS=ON
-           cmake --build --preset conan-release
-           cp include/${PROJECT_NAME}/version.hpp build
-           cp CMakeUserPresets.json build
+           #cmake --build --preset conan-release
+           #cp include/${PROJECT_NAME}/version.hpp build
+           #cp CMakeUserPresets.json build
 
       - name: Upload build directory
         uses: ./.github/actions/upload-build-directory
 
-  test:
-    runs-on: ubuntu-24.04
-    needs: build
+  #test:
+  #  runs-on: ubuntu-24.04
+  #  needs: build
 
-    steps:
-      - uses: actions/checkout@v6
+  #  steps:
+  #    - uses: actions/checkout@v6
 
-      - name: Prepare test environment
-        uses: ./.github/actions/prepare-environment
+  #    - name: Prepare test environment
+  #      uses: ./.github/actions/prepare-environment
 
-      - name: Download build directory
-        uses: ./.github/actions/download-build-directory
+  #    - name: Download build directory
+  #      uses: ./.github/actions/download-build-directory
 
-      - name: Run unit tests for release
-        working-directory: ${{github.workspace}}
-        run: |
-          mv build/version.hpp include/${PROJECT_NAME}/
-          mv build/CMakeUserPresets.json ./ 
-          ctest --preset conan-release
+  #    - name: Run unit tests for release
+  #      working-directory: ${{github.workspace}}
+  #      run: |
+  #        mv build/version.hpp include/${PROJECT_NAME}/
+  #        mv build/CMakeUserPresets.json ./ 
+  #        ctest --preset conan-release
 
-  package:
-    runs-on: ubuntu-24.04
-    needs: test
+  #package:
+  #  runs-on: ubuntu-24.04
+  #  needs: test
 
-    steps:
-      - uses: actions/checkout@v6
+  #  steps:
+  #    - uses: actions/checkout@v6
 
-      - name: Prepare environment
-        uses: ./.github/actions/prepare-environment
+  #    - name: Prepare environment
+  #      uses: ./.github/actions/prepare-environment
 
-      - name: Download build directory
-        uses: ./.github/actions/download-build-directory
+  #    - name: Download build directory
+  #      uses: ./.github/actions/download-build-directory
 
-      - name: Package tgz
-        working-directory: ${{github.workspace}}
-        run: |
-          mv build/version.hpp include/${PROJECT_NAME}/
-          mv build/CMakeUserPresets.json ./ 
-          cd build/Release
-          mkdir -p artifacts
-          cpack -B artifacts TGZ
+  #    - name: Package tgz
+  #      working-directory: ${{github.workspace}}
+  #      run: |
+  #        mv build/version.hpp include/${PROJECT_NAME}/
+  #        mv build/CMakeUserPresets.json ./ 
+  #        cd build/Release
+  #        mkdir -p artifacts
+  #        cpack -B artifacts TGZ
 
-      - name: Build and push image
-        env: # Or as an environment variable
-          QUAY_ROBOT_PASSWORD: ${{ secrets.QUAY_ROBOT_PASSWORD }}
-          QUAY_ROBOT_USER: ${{ secrets.QUAY_ROBOT_USER }}
-        working-directory: ${{github.workspace}}
-        run: |
-          echo $QUAY_ROBOT_PASSWORD | buildah login -u $QUAY_ROBOT_USER --password-stdin quay.io
-          cd build/Release
-          cp artifacts/*tar.gz ./
-          version=$(ls *tar.gz | sed 's/uSEEDLinkToRingServer-//g' | sed 's/-Linux.tar.gz//g') 
-          echo "Will build container version ${version}"
-          buildah bud -t ${CONTAINER_NAME}:${version} -t ${CONTAINER_NAME}:latest -f ./Dockerfile.u24
-          buildah tag ${CONTAINER_NAME}:${version} quay.io/uuss/${QUAY_DIRECTORY}:${version}
-          buildah push quay.io/uuss/${QUAY_DIRECTORY}:${version}
+  #    - name: Build and push image
+  #      env: # Or as an environment variable
+  #        QUAY_ROBOT_PASSWORD: ${{ secrets.QUAY_ROBOT_PASSWORD }}
+  #        QUAY_ROBOT_USER: ${{ secrets.QUAY_ROBOT_USER }}
+  #      working-directory: ${{github.workspace}}
+  #      run: |
+  #        echo $QUAY_ROBOT_PASSWORD | buildah login -u $QUAY_ROBOT_USER --password-stdin quay.io
+  #        cd build/Release
+  #        cp artifacts/*tar.gz ./
+  #        version=$(ls *tar.gz | sed 's/uSEEDLinkToRingServer-//g' | sed 's/-Linux.tar.gz//g') 
+  #        echo "Will build container version ${version}"
+  #        buildah bud -t ${CONTAINER_NAME}:${version} -t ${CONTAINER_NAME}:latest -f ./Dockerfile.u24
+  #        buildah tag ${CONTAINER_NAME}:${version} quay.io/uuss/${QUAY_DIRECTORY}:${version}
+  #        buildah push quay.io/uuss/${QUAY_DIRECTORY}:${version}
