@@ -2,6 +2,8 @@
 #include <cstdint>
 #include <stdexcept>
 #include <memory>
+#include <vector>
+#include <chrono>
 #include <utility>
 #include <string>
 #include <algorithm>
@@ -18,6 +20,13 @@ public:
     std::string mServerCertificate;
     std::string mClientCertificate;
     std::string mClientKey;
+    std::vector<std::chrono::milliseconds> mRetrySchedule
+    {
+        std::chrono::seconds {0},
+        std::chrono::seconds {5},
+        std::chrono::seconds {15},
+        std::chrono::seconds {30}
+    };
     uint16_t mPort{50000};
     bool mHaveServerCertificate{false}; 
     bool mHaveClientCertificate{false};
@@ -168,4 +177,25 @@ std::optional<std::string> GRPCClientOptions::getAccessToken() const noexcept
 {
     return pImpl->mHaveAccessToken ?
            std::make_optional<std::string> (pImpl->mAccessToken) : std::nullopt;
+}
+
+/// Set the retry schedule
+void GRPCClientOptions::setRetrySchedule(
+    const std::vector<std::chrono::milliseconds> &schedule)
+{
+    if (std::any_of(schedule.begin(), schedule.end(), 
+                    [](const auto &time)
+                    {
+                        return time.count() < 0;
+                    }))
+    {
+        throw std::runtime_error("Negative retry time in schedule");
+    }
+    pImpl->mRetrySchedule = schedule;
+}
+
+std::vector<std::chrono::milliseconds> 
+GRPCClientOptions::getRetrySchedule() const noexcept
+{
+    return pImpl->mRetrySchedule;
 }

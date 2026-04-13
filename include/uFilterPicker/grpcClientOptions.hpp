@@ -2,6 +2,8 @@
 #define UFILTER_PICKER_GRPC_CLIENT_OPTIONS_HPP
 #include <string>
 #include <memory>
+#include <vector>
+#include <chrono>
 #include <filesystem>
 #include <optional>
 namespace UFilterPicker
@@ -52,6 +54,11 @@ public:
     /// @result The client key.
     /// @note The client certificate must also be set for gRPC to use this.
     [[nodiscard]] std::optional<std::string> getClientKey() const noexcept;
+
+    /// @brief Sets the retry schedule.
+    void setRetrySchedule(const std::vector<std::chrono::milliseconds> &schedule);
+    /// @result The retry schedule.
+    [[nodiscard]] std::vector<std::chrono::milliseconds> getRetrySchedule() const noexcept;
 
     /// @brief Destructor
     ~GRPCClientOptions();
