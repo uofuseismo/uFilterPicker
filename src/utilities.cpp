@@ -118,6 +118,17 @@ UFilterPicker::Utilities::toString(
     return name;
 }
 
+std::string 
+UFilterPicker::Utilities::toString(
+    const UDataPacketServiceAPI::V1::Packet &packet)
+{
+    if (!packet.has_stream_identifier())
+    {
+        throw std::invalid_argument("Packet identifier not set");
+    }
+    return UFilterPicker::Utilities::toString(packet.stream_identifier());
+}
+
 template<>
 std::chrono::microseconds 
 UFilterPicker::Utilities::getStartTime(

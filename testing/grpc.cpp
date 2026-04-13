@@ -26,11 +26,11 @@ TEST_CASE("UFilterPicker", "[grpcClientOptions]")
             std::chrono::seconds {15},
             std::chrono::seconds {30}
         };
-        auto retrySchedule = options.getRetrySchedule();
-        REQUIRE(schedule.size() == retrySchedule.size());
+        auto reconnectSchedule = options.getReconnectSchedule();
+        REQUIRE(schedule.size() == reconnectSchedule.size());
         for (size_t i = 0; i < schedule.size(); ++i)
         {
-            REQUIRE(schedule.at(i) == retrySchedule.at(i));
+            REQUIRE(schedule.at(i) == reconnectSchedule.at(i));
         }
     }   
 
@@ -57,7 +57,7 @@ TEST_CASE("UFilterPicker", "[grpcClientOptions]")
         options.setAccessToken(token);
         options.setClientCertificate(clientCertificate);
         options.setClientKey(clientKey);
-        REQUIRE_NOTHROW(options.setRetrySchedule(schedule));
+        REQUIRE_NOTHROW(options.setReconnectSchedule(schedule));
 
         REQUIRE(options.getHost() == host);
         REQUIRE(options.getPort() == port);
@@ -67,11 +67,11 @@ TEST_CASE("UFilterPicker", "[grpcClientOptions]")
         REQUIRE(*options.getClientCertificate() == clientCertificate);
         REQUIRE(*options.getClientKey() == clientKey);
         //NOLINTEND(bugprone-unchecked-optional-access)
-        auto retrySchedule = options.getRetrySchedule();
-        REQUIRE(schedule.size() == retrySchedule.size());
+        auto reconnectSchedule = options.getReconnectSchedule();
+        REQUIRE(schedule.size() == reconnectSchedule.size());
         for (size_t i = 0; i < schedule.size(); ++i)
         {
-            REQUIRE(schedule.at(i) == retrySchedule.at(i));
+            REQUIRE(schedule.at(i) == reconnectSchedule.at(i));
         }
     }   
 }

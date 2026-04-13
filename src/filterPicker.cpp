@@ -36,10 +36,12 @@
 //#include <readerwriterqueue.h>
 #include "uFilterPicker/utilities.hpp"
 #include "uFilterPicker/detector.hpp"
+/*
 #include "uFilterPicker/pipeline.hpp"
 #include "uFilterPicker/characteristicFunction.hpp"
 #include "uFilterPicker/envelope.hpp"
 #include "uFilterPicker/narrowBandFilter.hpp"
+*/
 #include "uFilterPicker/thresholdTrigger.hpp"
 
 #define APPLICATION_NAME "uFilterPickerDetector"

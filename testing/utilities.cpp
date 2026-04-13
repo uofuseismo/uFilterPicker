@@ -114,6 +114,15 @@ TEST_CASE("UFilterPicker::Utilities", "[toString]")
     // NOLINTBEGIN
     REQUIRE(UFilterPicker::Utilities::toString(identifier) == "UU.HVU.HHZ.01");
     // NOLINTEND
+
+    SECTION("From Packet")
+    {
+        UDataPacketServiceAPI::V1::Packet packet;
+        *packet.mutable_stream_identifier() = identifier;
+        // NOLINTBEGIN
+        REQUIRE(UFilterPicker::Utilities::toString(packet) == "UU.HVU.HHZ.01");
+        // NOLINTEND
+    }
 }
 
 TEMPLATE_TEST_CASE("UFilterPicker::Utilities", "[unpackData]",

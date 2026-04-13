@@ -55,10 +55,10 @@ public:
     /// @note The client certificate must also be set for gRPC to use this.
     [[nodiscard]] std::optional<std::string> getClientKey() const noexcept;
 
-    /// @brief Sets the retry schedule.
-    void setRetrySchedule(const std::vector<std::chrono::milliseconds> &schedule);
+    /// @brief Sets the reconnect schedule.
+    void setReconnectSchedule(const std::vector<std::chrono::milliseconds> &schedule);
     /// @result The retry schedule.
-    [[nodiscard]] std::vector<std::chrono::milliseconds> getRetrySchedule() const noexcept;
+    [[nodiscard]] std::vector<std::chrono::milliseconds> getReconnectSchedule() const noexcept;
 
     /// @brief Destructor
     ~GRPCClientOptions();

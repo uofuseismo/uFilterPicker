@@ -20,7 +20,7 @@ public:
     std::string mServerCertificate;
     std::string mClientCertificate;
     std::string mClientKey;
-    std::vector<std::chrono::milliseconds> mRetrySchedule
+    std::vector<std::chrono::milliseconds> mReconnectSchedule
     {
         std::chrono::seconds {0},
         std::chrono::seconds {5},
@@ -180,7 +180,7 @@ std::optional<std::string> GRPCClientOptions::getAccessToken() const noexcept
 }
 
 /// Set the retry schedule
-void GRPCClientOptions::setRetrySchedule(
+void GRPCClientOptions::setReconnectSchedule(
     const std::vector<std::chrono::milliseconds> &schedule)
 {
     if (std::any_of(schedule.begin(), schedule.end(), 
@@ -191,11 +191,11 @@ void GRPCClientOptions::setRetrySchedule(
     {
         throw std::runtime_error("Negative retry time in schedule");
     }
-    pImpl->mRetrySchedule = schedule;
+    pImpl->mReconnectSchedule = schedule;
 }
 
 std::vector<std::chrono::milliseconds> 
-GRPCClientOptions::getRetrySchedule() const noexcept
+GRPCClientOptions::getReconnectSchedule() const noexcept
 {
-    return pImpl->mRetrySchedule;
+    return pImpl->mReconnectSchedule;
 }

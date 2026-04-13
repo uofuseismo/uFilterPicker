@@ -22,6 +22,8 @@ std::vector<double> toDoubleVector(
 [[nodiscard]]
 std::string toString(
     const UDataPacketServiceAPI::V1::StreamIdentifier &identifier);
+[[nodiscard]]
+std::string toString(const UDataPacketServiceAPI::V1::Packet &packet);
 
 template<typename T>
 T getStartTime(const UDataPacketServiceAPI::V1::Packet &packet);
