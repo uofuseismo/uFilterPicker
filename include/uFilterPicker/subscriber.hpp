@@ -1,5 +1,5 @@
-#ifndef UFILTER_PICKER_GRPC_CLIENT_HPP
-#define UFILTER_PICKER_GRPC_CLIENT_HPP
+#ifndef UFILTER_PICKER_SUBSCRIBER_HPP
+#define UFILTER_PICKER_SUBSCRIBER_HPP
 #include <string>
 #include <memory>
 #include <functional>
@@ -12,33 +12,33 @@ namespace UDataPacketServiceAPI::V1
 
 namespace UFilterPicker
 {
- class GRPCClientOptions;
+ class SubscriberOptions;
 }
 
 namespace UFilterPicker
 {
-/// @class GRPCClient
+/// @class Subscriber
 /// @brief Defines the gRPC data packet client.
 /// @copyright Ben Baker (University of Utah) distributed under the
 ///            MIT NO AI license.
-class GRPCClient
+class Subscriber
 {
 public:
     /// @brief Constructor
-    GRPCClient(const GRPCClientOptions &options,
+    Subscriber(const SubscriberOptions &options,
                const std::function<void (UDataPacketServiceAPI::V1::Packet &&paket)> &callback,
                std::shared_ptr<spdlog::logger> logger);
 
     /// @brief Destructor
-    ~GRPCClient();
+    ~Subscriber();
  
-    GRPCClient(const GRPCClient &) = delete;
-    GRPCClient(GRPCClient &&) noexcept = delete;
-    GRPCClient& operator=(const GRPCClient &) = delete;
-    GRPCClient& operator=(GRPCClient &&) noexcept = delete;
+    Subscriber(const Subscriber &) = delete;
+    Subscriber(Subscriber &&) noexcept = delete;
+    Subscriber& operator=(const Subscriber &) = delete;
+    Subscriber& operator=(Subscriber &&) noexcept = delete;
 private:
-    class GRPCClientImpl;
-    std::unique_ptr<GRPCClientImpl> pImpl;
+    class SubscriberImpl;
+    std::unique_ptr<SubscriberImpl> pImpl;
 };
 }
 #endif

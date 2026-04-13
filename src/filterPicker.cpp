@@ -532,7 +532,9 @@ int main(int argc, char *argv[])
     }
     catch (const std::exception &e)
     {
+        //NOLINTBEGIN(performance-avoid-endl)
         std::cerr << e.what() << std::endl;
+        //NOLINTEND(performance-avoid-endl)
         return EXIT_FAILURE;
     }
 

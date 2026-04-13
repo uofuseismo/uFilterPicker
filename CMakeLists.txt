@@ -85,6 +85,7 @@ set(LIBRARY_SRC
     src/thresholdTrigger.cpp
     src/detector.cpp
     src/grpcClientOptions.cpp
+    src/subscriberOptions.cpp
     src/utilities.cpp)
 set(IMPORT_PROTO_SRC
     uDataPacketServiceAPI/v1/data_type.proto
@@ -100,6 +101,8 @@ set(LIBRARY_HEADER_FILES
     include/uFilterPicker/envelope.hpp
     include/uFilterPicker/narrowBandFilter.hpp
     include/uFilterPicker/thresholdTrigger.hpp
+    include/uFilterPicker/grpcClientOptions.hpp
+    include/uFilterPicker/subscriberOptions.hpp
     include/uFilterPicker/utilities.hpp)
 #set(LIBRARY_MODULE_FILES
 #    src/modules/utilities.cppm)
@@ -151,7 +154,7 @@ set_source_files_properties(${PROTO_GENERATED_FILES} ${PROTO_GENERATED_CXX_FILES
 
 add_executable(uFilterPicker
                src/filterPicker.cpp
-               src/grpcClient.cpp)
+               src/subscriber.cpp)
 set_target_properties(uFilterPicker PROPERTIES
                       CXX_STANDARD 23
                       CXX_STANDARD_REQUIRED YES 

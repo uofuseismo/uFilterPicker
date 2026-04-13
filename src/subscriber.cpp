@@ -21,11 +21,13 @@
 #include <grpcpp/support/string_ref.h>
 #include <grpcpp/security/credentials.h>
 #include <grpcpp/security/auth_context.h>
+#include <oneapi/tbb/concurrent_map.h>
 #include <uDataPacketServiceAPI/v1/packet.pb.h>
 #include <uDataPacketServiceAPI/v1/stream_identifier.pb.h>
 #include <uDataPacketServiceAPI/v1/subscription_request.pb.h>
 #include <uDataPacketServiceAPI/v1/broadcast.grpc.pb.h>
-#include "uFilterPicker/grpcClient.hpp"
+#include "uFilterPicker/subscriber.hpp"
+#include "uFilterPicker/subscriberOptions.hpp"
 #include "uFilterPicker/grpcClientOptions.hpp"
 #include "uFilterPicker/utilities.hpp"
 
@@ -215,8 +217,6 @@ public:
             return;
         }
 
-        {
-
         auto idx = mLastPacketReceivedMap.find(name);
         if (idx != mLastPacketReceivedMap.end())
         {
@@ -224,8 +224,13 @@ public:
         }
         else
         {
-            mLastPacketReceivedMap.insert( std::pair {name, std::pair{std::move(streamIdentifier), endTime}} );
-        }
+            auto streamTime = std::pair{std::move(streamIdentifier), endTime};
+            auto added = mLastPacketReceivedMap.insert(
+               std::pair {name, std::move(streamTime) }).second;
+            if (!added)
+            {
+                SPDLOG_LOGGER_WARN(mLogger, "Failed to add {} to map", name);
+            }
         }
     }
 
@@ -246,10 +251,14 @@ private:
     <
         void (UDataPacketServiceAPI::V1::Packet &&packet)
     > mAddPacketCallback;
-    std::map
+    oneapi::tbb::concurrent_map
     <
         std::string,
-        std::pair<UDataPacketServiceAPI::V1::StreamIdentifier, std::chrono::microseconds>
+        std::pair
+        <
+           UDataPacketServiceAPI::V1::StreamIdentifier,
+           std::chrono::microseconds
+        >
     > mLastPacketReceivedMap;
     std::shared_ptr<spdlog::logger> mLogger;
     std::mutex mMutex;
@@ -263,12 +272,12 @@ private:
 
 }
 
-class GRPCClient::GRPCClientImpl
+class Subscriber::SubscriberImpl
 {
 public:
-    GRPCClientImpl
+    SubscriberImpl
     (
-        const GRPCClientOptions &options,
+        const SubscriberOptions &options,
         const std::function<void (UDataPacketServiceAPI::V1::Packet &&)> &callback,
         std::shared_ptr<spdlog::logger> logger
     ) :
@@ -278,7 +287,7 @@ public:
     {
     }
 
-    ~GRPCClientImpl()
+    ~SubscriberImpl()
     {
         stop();
     }
@@ -295,7 +304,7 @@ public:
 #ifndef NDEBUG
         assert(mLogger != nullptr);
 #endif
-        auto reconnectSchedule = mOptions.getReconnectSchedule();
+        auto reconnectSchedule = mOptions.getGRPCOptions().getReconnectSchedule();
         auto nReconnect = static_cast<int> (reconnectSchedule.size());
         for (int kReconnect =-1; kReconnect < nReconnect; ++kReconnect)
         {
@@ -317,13 +326,72 @@ public:
             }
             // Create channel
             auto channel
-                = ::createChannel(mOptions, mLogger.get()); //mOptions.getGRPCOptions(), mLogger.get());
+                = ::createChannel(mOptions.getGRPCOptions(), mLogger.get());
             auto stub = UDataPacketServiceAPI::V1::Broadcast::NewStub(channel);
 
+            UDataPacketServiceAPI::V1::SubscriptionRequest request;
+            auto subscriberIdentifier = mOptions.getIdentifier();
+            if (subscriberIdentifier)
+            {
+                request.set_identifier(*subscriberIdentifier);
+            }   
+            AsyncSubscriber subscriber{stub.get(),
+                                       request,
+                                       mAddPacketCallback,
+                                       mLogger,
+                                       &mKeepRunning};
+            auto [status, hadSuccessfulRead] = subscriber.await();
+            if (hadSuccessfulRead){kReconnect =-1;}
+            if (status.ok())
+            {   
+                if (!mKeepRunning.load())
+                {
+                    SPDLOG_LOGGER_INFO(mLogger,
+                                       "Subscriber RPC successfully finished");
+                    break;
+                }
+                else
+                {
+                    SPDLOG_LOGGER_WARN(mLogger,
+                        "Subscriber RPC successfully finished but I should keep reading");
+                }
+            }
+            else
+            {
+                int errorCode(status.error_code());
+                std::string errorMessage(status.error_message());
+                if (errorCode == grpc::StatusCode::UNAVAILABLE)
+                {
+                    SPDLOG_LOGGER_WARN(mLogger,
+                                       "Server unavailable (message: {})",
+                                       errorMessage);
+                }
+                else if (errorCode == grpc::StatusCode::CANCELLED)
+                {
+                    if (!mKeepRunning.load()){break;}
+                    SPDLOG_LOGGER_WARN(mLogger,
+                                       "Server-side cancel (message: {})",
+                                       errorMessage);
+                }
+                else
+                {
+                    SPDLOG_LOGGER_ERROR(mLogger,
+                             "Subscribe RPC failed with error code {} (what: {})",
+                             errorCode,  errorMessage);
+                    break;
+                }
+            }
+        } // Loop on retries
+        if (mKeepRunning.load())
+        {
+            SPDLOG_LOGGER_CRITICAL(mLogger,
+                                   "Subscriber thread quitting!");
+            throw std::runtime_error("Premature end of subscriber thread");
         }
+        SPDLOG_LOGGER_INFO(mLogger, "Subscriber thread exiting");
     }
 //private:
-    GRPCClientOptions mOptions;
+    SubscriberOptions mOptions;
     std::function<void (UDataPacketServiceAPI::V1::Packet &&)> mAddPacketCallback;
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
     mutable std::mutex mShutdownMutex;
@@ -333,4 +401,4 @@ public:
 };
 
 /// Destructor
-GRPCClient::~GRPCClient() = default;
+Subscriber::~Subscriber() = default;
