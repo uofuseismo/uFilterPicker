@@ -57,7 +57,7 @@ endif()
 FetchContent_Declare(uSignal
                      SYSTEM
                      GIT_REPOSITORY https://github.com/uofuseismo/uSignal.git
-                     GIT_TAG 947b0cd)
+                     GIT_TAG 1253d9b)
 FetchContent_MakeAvailable(uSignal)
 
 
@@ -154,14 +154,10 @@ set_source_files_properties(${PROTO_GENERATED_FILES} ${PROTO_GENERATED_CXX_FILES
 
 add_executable(uFilterPicker
                src/filterPicker.cpp
-<<<<<<< HEAD
-               src/subscriber.cpp)
-=======
-               src/grpcClient.cpp
+               src/subscriber.cpp
                uDataPacketServiceAPI/v1/data_type.proto
                uDataPacketServiceAPI/v1/stream_identifier.proto
                uDataPacketServiceAPI/v1/packet.proto)
->>>>>>> 3f9f6d90db2da2411dc8982e12eca6c796da6e89
 set_target_properties(uFilterPicker PROPERTIES
                       CXX_STANDARD 23
                       CXX_STANDARD_REQUIRED YES 
