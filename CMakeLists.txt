@@ -57,7 +57,7 @@ endif()
 FetchContent_Declare(uSignal
                      SYSTEM
                      GIT_REPOSITORY https://github.com/uofuseismo/uSignal.git
-                     GIT_TAG ebe08b6)
+                     GIT_TAG 947b0cd)
 FetchContent_MakeAvailable(uSignal)
 
 
@@ -135,11 +135,11 @@ target_sources(libuFilterPicker
 #                         src/modules
 #                      FILES
 #                         ${LIBRARY_MODULE_FILES})
-protobuf_generate(TARGET libuFilterPicker uFilterPicker
+protobuf_generate(TARGET libuFilterPicker 
                   LANGUAGE cpp 
                   OUT_VAR PROTO_GENERATED_CXX_FILES
                  )
-protobuf_generate(TARGET libuFilterPicker uFilterPicker
+protobuf_generate(TARGET libuFilterPicker 
                   LANGUAGE grpc
                   PLUGIN "protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>"
                   PLUGIN_OPTIONS generate_mock_code=true
@@ -154,7 +154,14 @@ set_source_files_properties(${PROTO_GENERATED_FILES} ${PROTO_GENERATED_CXX_FILES
 
 add_executable(uFilterPicker
                src/filterPicker.cpp
+<<<<<<< HEAD
                src/subscriber.cpp)
+=======
+               src/grpcClient.cpp
+               uDataPacketServiceAPI/v1/data_type.proto
+               uDataPacketServiceAPI/v1/stream_identifier.proto
+               uDataPacketServiceAPI/v1/packet.proto)
+>>>>>>> 3f9f6d90db2da2411dc8982e12eca6c796da6e89
 set_target_properties(uFilterPicker PROPERTIES
                       CXX_STANDARD 23
                       CXX_STANDARD_REQUIRED YES 
@@ -170,6 +177,18 @@ target_link_libraries(uFilterPicker
                               gRPC::grpc++
                               Boost::program_options
                               TBB::tbb)
+protobuf_generate(TARGET uFilterPicker
+                  LANGUAGE cpp 
+                  OUT_VAR PROTO_GENERATED_CXX_FILES
+                 )
+protobuf_generate(TARGET uFilterPicker
+                  LANGUAGE grpc
+                  PLUGIN "protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>"
+                  PLUGIN_OPTIONS generate_mock_code=true
+                  GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc
+                  OUT_VAR PROTO_GENERATED_FILES
+                 )
+                 
 if (${WITH_CONAN})
    target_link_libraries(uFilterPicker
                          PRIVATE opentelemetry-cpp::opentelemetry-cpp
