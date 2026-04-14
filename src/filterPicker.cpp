@@ -51,6 +51,7 @@
 #define APPLICATION_NAME "uFilterPickerDetector"
 
 import Logger;
+import Metrics;
 //import Utilities;
 import FilterPickerOptions;
 
@@ -538,6 +539,7 @@ int main(int argc, char *argv[])
     }
     catch (const std::exception &e)
     {
+        //NOLINTNEXTLINE(misc-include-cleaner)
         auto consoleLogger = spdlog::stdout_color_st("console");
         SPDLOG_LOGGER_CRITICAL(consoleLogger,
                                "Failed to read command line arguments because {}",
@@ -560,7 +562,35 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    auto logger = UFilterPicker::Logger::initialize(programOptions);
+    std::shared_ptr<spdlog::logger> logger{nullptr};
+    try
+    {
+        //NOLINTNEXTLINE(misc-include-cleaner)
+        logger = UFilterPicker::Logger::initialize(programOptions);
+    }
+    catch (const std::exception &e)
+    {
+        //NOLINTNEXTLINE(misc-include-cleaner)
+        auto consoleLogger = spdlog::stdout_color_st("console");
+        SPDLOG_LOGGER_CRITICAL(consoleLogger,
+                               "Failed to initialize logger because {}",
+                               std::string {e.what()});
+        return EXIT_FAILURE;
+    }
+
+    try 
+    {
+        //NOLINTNEXTLINE(misc-include-cleaner)
+        UFilterPicker::Metrics::initialize(programOptions);
+    }
+    catch (const std::exception &e)
+    {
+        SPDLOG_LOGGER_CRITICAL(logger,
+                               "Failed to initialize metrics because {}",
+                               std::string {e.what()});
+        return EXIT_FAILURE;
+    }
+
 /*
     std::unique_ptr<::NetworkDetector> networkDetector;
     try
@@ -581,7 +611,11 @@ int main(int argc, char *argv[])
     std::this_thread::sleep_for(std::chrono::seconds {120});
 //    networkDetector->stop();
 */
+    //NOLINTBEGIN(misc-include-cleaner)
+    UFilterPicker::Metrics::cleanup();
     UFilterPicker::Logger::cleanup();
+    //NOLINTEND(misc-include-cleaner)
+
     return EXIT_SUCCESS;
 }
 

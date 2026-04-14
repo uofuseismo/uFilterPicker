@@ -104,8 +104,6 @@ set(LIBRARY_HEADER_FILES
     include/uFilterPicker/subscriberOptions.hpp
     include/uFilterPicker/utilities.hpp
     include/uFilterPicker/version.hpp)
-#set(LIBRARY_MODULE_FILES
-#    src/modules/utilities.cppm)
 
 add_library(libuFilterPicker STATIC ${LIBRARY_SRC} ${IMPORT_PROTO_SRC})
 add_library(uFilterPicker::libuFilterPicker ALIAS libuFilterPicker)
@@ -210,6 +208,7 @@ target_sources(uFilterPicker
                          src/modules/otelOptions.cppm
                          src/modules/logger.cppm
                          src/modules/filterPickerOptions.cppm
+                         src/modules/metrics.cppm
                          src/modules/otelSpdlogSink.cppm)
 #                         ${LIBRARY_MODULE_FILES})
 protobuf_generate(TARGET uFilterPicker

@@ -51,6 +51,7 @@ void setVerbosityForSPDLOG(const int verbosity,
 std::shared_ptr<spdlog::logger>
     initializeHTTP(const int verbosity,
                    const bool exportLogs,
+                   // NOLINTNEXTLINE(misc-include-cleaner)
                    const UFilterPicker::OTelOptions::HTTPLog &options)
 {
     std::shared_ptr<spdlog::logger> logger{nullptr};
@@ -96,7 +97,8 @@ std::shared_ptr<spdlog::logger>
 std::shared_ptr<spdlog::logger>
     initializeGRPC(const int verbosity,
                    const bool exportLogs,
-                   UFilterPicker::OTelOptions::GRPCLog &options)
+                   // NOLINTNEXTLINE(misc-include-cleaner)
+                   const UFilterPicker::OTelOptions::GRPCLog &options)
 {
     std::shared_ptr<spdlog::logger> logger{nullptr};
     auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt> ();
@@ -124,7 +126,6 @@ std::shared_ptr<spdlog::logger>
         const std::shared_ptr<opentelemetry::logs::LoggerProvider>
             apiProvider = loggerProvider;
         otel::logs::Provider::SetLoggerProvider(apiProvider);
-/*
 
         auto otelLogger
             = std::make_shared<spdlog::sinks::OpenTelemetrySink<std::mutex>> ();
@@ -132,7 +133,6 @@ std::shared_ptr<spdlog::logger>
         logger
             = std::make_shared<spdlog::logger>
               (spdlog::logger ("OTelLogger", {otelLogger, consoleSink}));
-*/
     }
     else
     {
@@ -152,8 +152,9 @@ namespace UFilterPicker::Logger
 {           
 
 export
-std::shared_ptr<spdlog::logger>
-    initialize(UFilterPicker::Options::ProgramOptions &options)
+std::shared_ptr<spdlog::logger> initialize(
+    // NOLINTNEXTLINE(misc-include-cleaner)
+    const UFilterPicker::Options::ProgramOptions &options)
 {
     if (options.exportLogsWithHTTP)
     {

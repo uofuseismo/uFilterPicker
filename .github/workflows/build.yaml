@@ -67,6 +67,9 @@ jobs:
       - name: Prepare environment
         uses: ./.github/actions/prepare-environment
 
+      - name: Get oneAPI
+        uses: ./.github/actions/get-oneapi
+
       - name: Install Conan dependencies
         working-directory: ${{github.workspace}}
         run: "conan install . --build=missing -s:a build_type=${{env.BUILD_TYPE}} -s:a compiler=clang -s:a compiler.version=20 -s:a compiler.cppstd=23 -s:a compiler.libcxx=libstdc++11 --output-folder ."
