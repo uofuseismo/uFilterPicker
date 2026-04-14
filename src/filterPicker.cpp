@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <utility>
 #include <limits>
-#include <fstream>
+#include <functional>
 #include <stdexcept>
 #include <sstream>
 #include <string>
@@ -39,6 +39,7 @@
 //#include <readerwriterqueue.h>
 #include "uFilterPicker/utilities.hpp"
 #include "uFilterPicker/detector.hpp"
+#include "uFilterPicker/subscriber.hpp"
 #include "uFilterPicker/subscriberOptions.hpp"
 /*
 #include "uFilterPicker/pipeline.hpp"
@@ -377,9 +378,25 @@ public:
 class NetworkDetector
 {
 public:
-    //NetworkDetector(const UFilterPicker::ProgramOptions &options)
-NetworkDetector()
+    NetworkDetector(const UFilterPicker::Options::ProgramOptions &options,
+                    std::shared_ptr<spdlog::logger> logger) :
+        mOptions(options),
+        mLogger(logger)
     {
+        if (mLogger == nullptr)
+        {
+            //NOLINTNEXTLINE(misc-include-cleaner)
+            mLogger = spdlog::stdout_color_st("console");
+        }
+
+        // Create a subscriber
+        mPacketSubscriber
+            = std::make_unique<UFilterPicker::Subscriber> (options.packetSubscriberOptions, mImportCallback, mLogger);
+        // Setup metrics
+        if (mOptions.exportMetrics)
+        {
+
+        }
 /*
         UDataPacketImport::GRPC::ClientOptions clientOptions;
         clientOptions.setAddress(options.importOptions.host + ":"
@@ -500,7 +517,9 @@ if (np > 1000){
         //mImportClient->stop();
     }
 //private:
+    UFilterPicker::Options::ProgramOptions mOptions;
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
+    std::unique_ptr<UFilterPicker::Subscriber> mPacketSubscriber{nullptr};
     std::function<void(UDataPacketServiceAPI::V1::Packet &&)>
         mImportCallback
     {   
@@ -522,6 +541,8 @@ if (np > 1000){
 };
 
 }
+
+///---------------------------------------------------------------------------///
 
 int main(int argc, char *argv[])
 {
@@ -588,23 +609,28 @@ int main(int argc, char *argv[])
         SPDLOG_LOGGER_CRITICAL(logger,
                                "Failed to initialize metrics because {}",
                                std::string {e.what()});
+        //NOLINTNEXTLINE(misc-include-cleaner)
+        UFilterPicker::Logger::cleanup();
         return EXIT_FAILURE;
     }
 
-/*
     std::unique_ptr<::NetworkDetector> networkDetector;
     try
     {
-        networkDetector = std::make_unique<::NetworkDetector> (programOptions);
+        networkDetector
+            = std::make_unique<::NetworkDetector> (programOptions, logger);
     }
     catch (const std::exception &e)
     {
         SPDLOG_LOGGER_CRITICAL(logger,
                                "Failed to create network detector because {}",
                                std::string {e.what()});
+        //NOLINTBEGIN(misc-include-cleaner)
+        UFilterPicker::Metrics::cleanup();
+        UFilterPicker::Logger::cleanup();
+        //NOLINTEND(misc-include-cleaner)
         return EXIT_FAILURE;
     }
-*/
 
 /*
 //  networkDetector->start();

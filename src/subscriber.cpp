@@ -1,4 +1,5 @@
 #include <atomic>
+#include <future>
 #include <chrono>
 #include <mutex>
 #include <algorithm>
@@ -14,6 +15,8 @@
 #endif
 #include <spdlog/spdlog.h>
 #include <spdlog/logger.h>
+//NOLINTNEXTLINE(misc-include-cleaner)
+#include <spdlog/sinks/stdout_color_sinks.h>
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/support/client_callback.h>
 #include <grpcpp/support/config.h>
@@ -285,11 +288,32 @@ public:
         mAddPacketCallback(callback),
         mLogger(std::move(logger))
     {
+        if (!mOptions.hasGRPCOptions())
+        {
+            throw std::runtime_error("GRPC client options not set");
+        }
+        if (!mOptions.hasStreamIdentifiers())
+        {
+            throw std::invalid_argument(
+                "No streams selected to which to subscribe");
+        }
+        if (mLogger == nullptr)
+        {
+            //NOLINTNEXTLINE(misc-include-cleaner)
+            mLogger = spdlog::stdout_color_st("subscriber-console");
+        }
+        mInitialized = true;
     }
 
     ~SubscriberImpl()
     {
         stop();
+    }
+
+    std::future<void> start()
+    {
+        mKeepRunning.store(true);
+        return std::async(&SubscriberImpl::acquirePackets, this);
     }
 
     void stop()                    
@@ -398,7 +422,38 @@ public:
     std::condition_variable mShutdownCondition;
     std::atomic<bool> mKeepRunning{true};
     bool mShutdownRequested{false};
+    bool mInitialized{false};
 };
+
+/// Constructor
+Subscriber::Subscriber(const SubscriberOptions &options,
+                       const std::function<void (UDataPacketServiceAPI::V1::Packet &&)> &callback,
+                       std::shared_ptr<spdlog::logger> logger) :
+    pImpl(std::make_unique<SubscriberImpl> (options, callback, std::move(logger)))
+{
+}
+
+/// Initialized
+bool Subscriber::isInitialized() const noexcept
+{
+    return pImpl->mInitialized;
+}
+
+/// Start
+std::future<void> Subscriber::start()
+{
+    if (!isInitialized())
+    {
+        throw std::runtime_error("Subscriber not initialized");
+    }
+    return pImpl->start();
+}
+
+/// Stop
+void Subscriber::stop()
+{
+    pImpl->stop();
+}
 
 /// Destructor
 Subscriber::~Subscriber() = default;

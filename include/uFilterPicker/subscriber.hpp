@@ -1,5 +1,6 @@
 #ifndef UFILTER_PICKER_SUBSCRIBER_HPP
 #define UFILTER_PICKER_SUBSCRIBER_HPP
+#include <future>
 #include <string>
 #include <memory>
 #include <functional>
@@ -28,6 +29,15 @@ public:
     Subscriber(const SubscriberOptions &options,
                const std::function<void (UDataPacketServiceAPI::V1::Packet &&paket)> &callback,
                std::shared_ptr<spdlog::logger> logger);
+
+    /// @result True indicates the subscriber is initialized.
+    [[nodiscard]] bool isInitialized() const noexcept;
+
+    /// @brief starts the acquisition.
+    [[nodiscard]] std::future<void> start();
+
+    /// @brief Stops the acquisition.
+    void stop();
 
     /// @brief Destructor
     ~Subscriber();
