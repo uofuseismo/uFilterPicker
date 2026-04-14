@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <csignal>
 #include <iostream>
 #include <cstdint>
 #include <algorithm>
@@ -59,6 +60,8 @@ import FilterPickerOptions;
 namespace
 {
 
+std::atomic_bool mInterrupted{false};
+
 /*
 struct PacketImport
 {
@@ -67,7 +70,6 @@ struct PacketImport
     std::string clientCertificate;
     std::string clientToken;
 };
-*/
 
 struct ProgramOptions
 {
@@ -94,6 +96,7 @@ struct ProgramOptions
 
 [[nodiscard]] std::pair<std::string, bool> parseCommandLineOptions(int argc, char *argv[]);
 [[nodiscard]] ::ProgramOptions parseIniFile(const std::filesystem::path &iniFile);
+*/
 
 }
 
@@ -244,7 +247,7 @@ public:
     Detector(const UDataPacketServiceAPI::V1::StreamIdentifier &identifier,
              std::shared_ptr<spdlog::logger> logger) :
         mIdentifier(identifier), 
-        mIdentifierString(::toString(identifier)),
+        mIdentifierString(UFilterPicker::Utilities::toString(identifier)),
         mLogger(logger)
     {
         mDetector = UFilterPicker::Detector::create100HzBroadband();
@@ -266,11 +269,12 @@ public:
         operator()(const UDataPacketServiceAPI::V1::Packet &packet)
     {
         // Apply to the packet
-        if (::toString(packet) != mIdentifierString)
+        if (UFilterPicker::Utilities::toString(packet) != mIdentifierString)
         {
             SPDLOG_LOGGER_ERROR(mLogger, 
                                "Inconsistent identifier - {} does not match {}",
-                               ::toString(packet), mIdentifierString);
+                               UFilterPicker::Utilities::toString(packet),
+                               mIdentifierString);
             return std::nullopt;
         }
         auto samplingRate = packet.sampling_rate();
@@ -313,7 +317,7 @@ public:
                    "Out of order packet detected for {} < {} {} {}; skipping",
                     packetStartTime.count()*1.e-6,
                     mLastSampleTime.count()*1.e-6,
-                    ::toString(packet),
+                    UFilterPicker::Utilities::toString(packet),
                     mIdentifierString);
                 return std::nullopt;
             }
@@ -482,9 +486,10 @@ if (np > 1000){
         }
 */
     }
+ 
+    /// Callback for packet subscriber
     void getPacket(UDataPacketServiceAPI::V1::Packet &&packet)
     {
-        //spdlog::debug("got packet");
         if (mImportQueue.size() >= mMaximumImportQueueSize)
         {
             SPDLOG_LOGGER_WARN(mLogger, "Queue full - popping packets");
@@ -503,19 +508,107 @@ if (np > 1000){
             SPDLOG_LOGGER_WARN(mLogger, "Failed to enqueue packet");
         }
     }
+
+    /// Starts the application
     void start()
     {
-        stop();
-
         mKeepRunning = true;
-//        mImportFuture = mImportClient->start();
+        mImportFuture = mPacketSubscriber->start();
         mDataProcessingFuture = std::async(&NetworkDetector::filterPackets, this);
+        handleMainThread();
     }
     void stop()
     {
         mKeepRunning = false;
-        //mImportClient->stop();
+        mPacketSubscriber->stop();
     }
+
+    /// Keeps the main thread occupied
+    void handleMainThread()
+    {
+        SPDLOG_LOGGER_DEBUG(mLogger, "Main thread entering waiting loop");
+        catchSignals();
+        {
+            while (!mStopRequested)
+            {
+                if (mInterrupted)
+                {
+                    SPDLOG_LOGGER_INFO(mLogger,
+                                       "SIGINT/SIGTERM signal received!");
+                    mStopRequested = true;
+                    break;
+                }
+                constexpr std::chrono::milliseconds waitForFuture {5};
+                if (!checkFuturesOkay(waitForFuture))
+                {
+                    SPDLOG_LOGGER_CRITICAL(mLogger,
+                       "Futures exception caught; terminating app");
+                    mStopRequested = true;
+                    break;
+                }
+                printSummary();
+                std::unique_lock<std::mutex> lock(mStopMutex);
+                constexpr std::chrono::milliseconds pause{100};
+                mStopCondition.wait_for(lock, pause,
+                                        [this]
+                                        {
+                                            return mStopRequested;
+                                        });
+            }
+        }
+        if (mStopRequested)
+        {
+            SPDLOG_LOGGER_DEBUG(mLogger,
+                                "Stop request received.  Terminating...");
+            stop();
+            std::this_thread::sleep_for(std::chrono::milliseconds {15});
+        }
+    } 
+
+    /// @brief Prints an update
+    void printSummary()
+    {
+
+    }
+
+    /// @brief Checks the futures
+    /// @result True indicates the all the processes are running a-okay.
+    [[nodiscard]]
+    bool checkFuturesOkay(const std::chrono::milliseconds &timeOut)
+    {
+        bool isOkay{true};
+        try
+        {
+            auto status = mImportFuture.wait_for(timeOut);
+            if (status == std::future_status::ready){mImportFuture.get();}
+        }
+        catch (const std::exception &e)
+        {
+            SPDLOG_LOGGER_CRITICAL(mLogger,
+                                   "Fatal error in acquisition: {}",
+                                   std::string {e.what()});
+            isOkay = false;
+        }
+
+        return isOkay;
+    }
+
+    /// Handles sigterm and sigint
+    static void signalHandler(const int )
+    {   
+        mInterrupted = true; 
+    }
+
+    static void catchSignals()
+    {
+        struct sigaction action;
+        action.sa_handler = signalHandler;
+        action.sa_flags = 0; 
+        sigemptyset(&action.sa_mask);
+        sigaction(SIGINT,  &action, NULL);
+        sigaction(SIGTERM, &action, NULL);
+    }    
+
 //private:
     UFilterPicker::Options::ProgramOptions mOptions;
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
@@ -537,6 +630,9 @@ if (np > 1000){
     std::future<void> mImportFuture;
     std::future<void> mDataProcessingFuture;
     std::atomic<bool> mKeepRunning{true};
+    mutable std::mutex mStopMutex;
+    std::condition_variable mStopCondition;
+    bool mStopRequested{false};
     size_t mMaximumImportQueueSize{512};
 };
 
@@ -617,6 +713,7 @@ int main(int argc, char *argv[])
     std::unique_ptr<::NetworkDetector> networkDetector;
     try
     {
+        SPDLOG_LOGGER_INFO(logger, "Initializing network detector");
         networkDetector
             = std::make_unique<::NetworkDetector> (programOptions, logger);
     }
@@ -632,16 +729,26 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-/*
-//  networkDetector->start();
-    std::this_thread::sleep_for(std::chrono::seconds {120});
-//    networkDetector->stop();
-*/
-    //NOLINTBEGIN(misc-include-cleaner)
-    UFilterPicker::Metrics::cleanup();
-    UFilterPicker::Logger::cleanup();
-    //NOLINTEND(misc-include-cleaner)
-
+    try
+    {
+        SPDLOG_LOGGER_INFO(logger, "Starting detector");
+        networkDetector->start(); 
+        //NOLINTBEGIN(misc-include-cleaner)
+        UFilterPicker::Metrics::cleanup();
+        UFilterPicker::Logger::cleanup();
+        //NOLINTEND(misc-include-cleaner)
+    }
+    catch (const std::exception &e) 
+    {   
+        SPDLOG_LOGGER_CRITICAL(logger,
+                               "Failed to create network detector because {}",
+                               std::string {e.what()});
+        //NOLINTBEGIN(misc-include-cleaner)
+        UFilterPicker::Metrics::cleanup();
+        UFilterPicker::Logger::cleanup();
+        //NOLINTEND(misc-include-cleaner)
+        return EXIT_FAILURE;
+    }
     return EXIT_SUCCESS;
 }
 
