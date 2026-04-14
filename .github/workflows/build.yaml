@@ -100,7 +100,7 @@ jobs:
         run: |
           mv build/version.hpp include/${PROJECT_NAME}/
           mv build/CMakeUserPresets.json ./ 
-          ctest --preset conan-release
+          ctest --preset conan-release --verbose
 
   #package:
   #  runs-on: ubuntu-24.04

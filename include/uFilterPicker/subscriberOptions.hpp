@@ -30,6 +30,8 @@ public:
 
     /// @brief Sets the stream identifiers to for which we will receive data packets.
     void setStreamIdentifiers(const std::vector<UDataPacketServiceAPI::V1::StreamIdentifier> &identifiers);
+    /// @result The stream identifiers.
+    [[nodiscard]] std::vector<UDataPacketServiceAPI::V1::StreamIdentifier> getStreamIdentifiers() const;
     /// @result True indicates the stream identifiers were set.
     [[nodiscard]] bool hasStreamIdentifiers() const noexcept;
 

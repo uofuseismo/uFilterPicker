@@ -57,7 +57,7 @@ endif()
 FetchContent_Declare(uSignal
                      SYSTEM
                      GIT_REPOSITORY https://github.com/uofuseismo/uSignal.git
-                     GIT_TAG 1253d9b)
+                     GIT_TAG f63e598)
 FetchContent_MakeAvailable(uSignal)
 
 if (${USE_CLANG_TIDY} AND PROJECT_IS_TOP_LEVEL)

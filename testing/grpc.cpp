@@ -7,6 +7,8 @@
 //#include <catch2/matchers/catch_matchers.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include "uFilterPicker/grpcClientOptions.hpp"
+#include "uFilterPicker/subscriberOptions.hpp"
+#include "uDataPacketServiceAPI/v1/stream_identifier.pb.h"
 
 TEST_CASE("UFilterPicker", "[grpcClientOptions]")
 {
@@ -76,3 +78,64 @@ TEST_CASE("UFilterPicker", "[grpcClientOptions]")
     }   
 }
 
+TEST_CASE("UFilterPicker", "[SubscriberOptions]")
+{
+    const std::string identifier{"grpc-client-12"};
+    const std::string host{"some.host.org"};
+    const uint16_t port{12345};
+
+    UDataPacketServiceAPI::V1::StreamIdentifier id1;
+    id1.set_network("UU");
+    id1.set_station("CTU");
+    id1.set_channel("HHZ");
+    id1.set_location_code("01");
+
+    UDataPacketServiceAPI::V1::StreamIdentifier id2;
+    id2.set_network("UU");
+    id2.set_station("ELU");
+    id2.set_channel("EHZ");
+    id2.set_location_code("01");
+
+    std::vector<UDataPacketServiceAPI::V1::StreamIdentifier> streamIdentifiers
+    {
+        id1, id2
+    };
+
+    UFilterPicker::GRPCClientOptions grpcOptions;
+    grpcOptions.setHost(host);
+    grpcOptions.setPort(port);
+
+    UFilterPicker::SubscriberOptions options;
+    //NOLINTBEGIN(bugprone-unchecked-optional-access)
+    REQUIRE(*options.getIdentifier() == "uFilterPicker");
+    //NOLINTEND(bugprone-unchecked-optional-access)
+
+    REQUIRE_NOTHROW(options.setGRPCOptions(grpcOptions));
+    REQUIRE_NOTHROW(options.setStreamIdentifiers(streamIdentifiers));
+    options.setIdentifier(identifier);
+
+    REQUIRE(options.getGRPCOptions().getHost() == host);
+    REQUIRE(options.getGRPCOptions().getPort() == port);
+    //NOLINTBEGIN(bugprone-unchecked-optional-access)
+    REQUIRE(*options.getIdentifier() == identifier);
+    //NOLINTEND(bugprone-unchecked-optional-access)
+    REQUIRE(options.getStreamIdentifiers().size() == streamIdentifiers.size());
+    for (const auto &id : options.getStreamIdentifiers())
+    {
+        bool matched{false};
+        for (const auto &jd : streamIdentifiers)
+        {
+            if (id.network() == jd.network() &&
+                id.station() == jd.station() &&
+                id.channel() == jd.channel() &&
+                id.location_code() == jd.location_code())
+            {
+                matched = true;
+            }
+       }
+       REQUIRE(matched);
+    }
+
+    streamIdentifiers.push_back(id1);
+    REQUIRE_THROWS(options.setStreamIdentifiers(streamIdentifiers));
+}
