@@ -60,7 +60,6 @@ FetchContent_Declare(uSignal
                      GIT_TAG 1253d9b)
 FetchContent_MakeAvailable(uSignal)
 
-
 if (${USE_CLANG_TIDY} AND PROJECT_IS_TOP_LEVEL)
    message("Looking for clang-tidy")
    find_program(CLANG_TIDY_EXECUTABLE NAMES "clang-tidy")
@@ -75,6 +74,8 @@ if (${USE_CLANG_TIDY} AND PROJECT_IS_TOP_LEVEL)
    endif()
 endif()
 
+configure_file(${CMAKE_SOURCE_DIR}/src/version.hpp.in
+               ${CMAKE_SOURCE_DIR}/include/uFilterPicker/version.hpp)
 
 set(LIBRARY_SRC
     src/options.cpp
@@ -86,6 +87,7 @@ set(LIBRARY_SRC
     src/detector.cpp
     src/grpcClientOptions.cpp
     src/subscriberOptions.cpp
+    src/version.cpp
     src/utilities.cpp)
 set(IMPORT_PROTO_SRC
     uDataPacketServiceAPI/v1/data_type.proto
@@ -103,7 +105,8 @@ set(LIBRARY_HEADER_FILES
     include/uFilterPicker/thresholdTrigger.hpp
     include/uFilterPicker/grpcClientOptions.hpp
     include/uFilterPicker/subscriberOptions.hpp
-    include/uFilterPicker/utilities.hpp)
+    include/uFilterPicker/utilities.hpp
+    include/uFilterPicker/version.hpp)
 #set(LIBRARY_MODULE_FILES
 #    src/modules/utilities.cppm)
 
