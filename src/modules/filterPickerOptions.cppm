@@ -25,6 +25,7 @@ module;
 #include <boost/property_tree/ptree_fwd.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <uDataPacketServiceAPI/v1/stream_identifier.pb.h>
+#include "uFilterPicker/subscriberOptions.hpp"
 #include "uFilterPicker/grpcClientOptions.hpp"
 #include "uFilterPicker/utilities.hpp"
 
@@ -132,7 +133,8 @@ namespace UFilterPicker::Options
 export
 struct ProgramOptions
 {
-    UFilterPicker::GRPCClientOptions grpcClientOptions;
+    //UFilterPicker::GRPCClientOptions grpcClientOptions;
+    UFilterPicker::SubscriberOptions packetSubscriberOptions;
     //NOLINTBEGIN(misc-include-cleaner)
     UFilterPicker::OTelOptions::HTTPMetrics otelHTTPMetricsOptions;
     UFilterPicker::OTelOptions::HTTPLog otelHTTPLogOptions;
@@ -140,8 +142,10 @@ struct ProgramOptions
     UFilterPicker::OTelOptions::GRPCLog otelGRPCLogOptions;
     //NOLINTEND(misc-include-cleaner)
     std::string applicationName{APPLICATION_NAME}; 
-    std::vector<UDataPacketServiceAPI::V1::StreamIdentifier> streamIdentifiers;
+    //std::vector<UDataPacketServiceAPI::V1::StreamIdentifier> streamIdentifiers;
     int verbosity{3};
+    bool exportLogsWithHTTP{true};
+    bool exportLogs{false};
 };
 
 export
@@ -204,8 +208,10 @@ ProgramOptions parseIniFile(const std::filesystem::path &iniFile)
         = propertyTree.get<int> ("General.verbosity", options.verbosity);
 
     // GRPC client options
-    options.grpcClientOptions
+    auto grpcClientOptions
         = ::getGRPCClientOptions(propertyTree, "GRPCClient");
+    options.packetSubscriberOptions.setGRPCOptions(grpcClientOptions);
+    options.packetSubscriberOptions.setIdentifier(options.applicationName);
 
     // Get the streams to process
     std::vector<UDataPacketServiceAPI::V1::StreamIdentifier> streams;
@@ -287,7 +293,7 @@ ProgramOptions parseIniFile(const std::filesystem::path &iniFile)
     {
         throw std::invalid_argument("No streams specified");
     }
-    options.streamIdentifiers = std::move(streams);
+    options.packetSubscriberOptions.setStreamIdentifiers(streams);
 
     return options;
 }

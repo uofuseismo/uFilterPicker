@@ -24,8 +24,6 @@ if (NOT BUILD_SHARED_LIBS)
    set(Boost_USE_STATIC_LIBS ON) 
 endif()
 
-#find_package(absl CONFIG REQUIRED)
-#find_package(utf8_range CONFIG REQUIRED)
 find_package(Protobuf CONFIG REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
 #find_package(uSignal REQUIRED)
@@ -40,7 +38,6 @@ find_package(Boost COMPONENTS headers program_options REQUIRED)
 find_package(Threads REQUIRED)
 find_package(Catch2 3 REQUIRED)
 find_package(TBB COMPONENTS tbb REQUIRED)
-#find_package(IPP COMPONENTS ippcore ipps ippvm REQUIRED)
 if (${BUILD_TRAINING})
    find_package(libpqxx REQUIRED)
    find_package(GeographicLib REQUIRED)
@@ -125,8 +122,12 @@ target_include_directories(libuFilterPicker
 target_link_libraries(libuFilterPicker
                       PRIVATE protobuf::libprotobuf
                               spdlog::spdlog_header_only
-                              gRPC::grpc
+                              gRPC::grpc gRPC::grpc++
                               uSignal::libuSignal)
+#                              opentelemetry-cpp::opentelemetry-cpp
+#                              opentelemetry-cpp::metrics
+#                              opentelemetry-cpp::common
+#                              opentelemetry-cpp::api)
 target_sources(libuFilterPicker
                PUBLIC FILE_SET HEADERS
                       BASE_DIRS
@@ -138,6 +139,7 @@ target_sources(libuFilterPicker
 #                         src/modules
 #                      FILES
 #                         ${LIBRARY_MODULE_FILES})
+
 protobuf_generate(TARGET libuFilterPicker 
                   LANGUAGE cpp 
                   OUT_VAR PROTO_GENERATED_CXX_FILES
@@ -168,26 +170,7 @@ set_target_properties(uFilterPicker PROPERTIES
 target_include_directories(uFilterPicker
                            PRIVATE $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
                            PRIVATE $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
-                           PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>)
-target_link_libraries(uFilterPicker
-                      PRIVATE uFilterPicker::libuFilterPicker
-                              spdlog::spdlog_header_only
-                              gRPC::grpc
-                              gRPC::grpc++
-                              Boost::program_options
-                              TBB::tbb)
-protobuf_generate(TARGET uFilterPicker
-                  LANGUAGE cpp 
-                  OUT_VAR PROTO_GENERATED_CXX_FILES
-                 )
-protobuf_generate(TARGET uFilterPicker
-                  LANGUAGE grpc
-                  PLUGIN "protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>"
-                  PLUGIN_OPTIONS generate_mock_code=true
-                  GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc
-                  OUT_VAR PROTO_GENERATED_FILES
-                 )
-                 
+                           PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 if (${WITH_CONAN})
    target_link_libraries(uFilterPicker
                          PRIVATE opentelemetry-cpp::opentelemetry-cpp
@@ -208,6 +191,12 @@ else()
                          PRIVATE opentelemetry-cpp::otlp_http_log_record_exporter
                                  opentelemetry-cpp::otlp_http_metric_exporter)
 endif()
+target_link_libraries(uFilterPicker
+                      PRIVATE uFilterPicker::libuFilterPicker
+                              spdlog::spdlog_header_only
+                              protobuf::libprotobuf gRPC::grpc gRPC::grpc++
+                              Boost::headers Boost::program_options
+                              TBB::tbb)
 target_sources(uFilterPicker
                #PUBLIC FILE_SET HEADERS
                #       BASE_DIRS
@@ -223,6 +212,18 @@ target_sources(uFilterPicker
                          src/modules/filterPickerOptions.cppm
                          src/modules/otelSpdlogSink.cppm)
 #                         ${LIBRARY_MODULE_FILES})
+protobuf_generate(TARGET uFilterPicker
+                  LANGUAGE cpp
+                  OUT_VAR PROTO_GENERATED_CXX_FILES
+                 )
+protobuf_generate(TARGET uFilterPicker
+                  LANGUAGE grpc
+                  PLUGIN "protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>"
+                  PLUGIN_OPTIONS generate_mock_code=true
+                  GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc
+                  OUT_VAR PROTO_GENERATED_FILES
+                 )
+
 
 
 
@@ -277,7 +278,7 @@ if (PROJECT_IS_TOP_LEVEL AND ${BUILD_TESTS})
                             uFilterPicker::libuFilterPicker
                             spdlog::spdlog_header_only
                             gRPC::grpc gRPC::grpc++
-                            Threads::Threads
+                            Threads::Threads TBB::tbb
                             Catch2::Catch2 Catch2::Catch2WithMain)
    target_include_directories(unitTests
                               PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)

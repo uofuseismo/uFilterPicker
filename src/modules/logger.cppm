@@ -2,6 +2,7 @@ module;
 #include <utility>
 #include <string>
 #include <mutex>
+#include <filesystem>
 #include <memory>
 #ifndef NDEBUG
 #include <cassert>
@@ -9,17 +10,20 @@ module;
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/common.h>
-//#include <opentelemetry/exporters/otlp/otlp_http_exporter_options.h>
-//#include <opentelemetry/exporters/otlp/otlp_http_exporter_factory.h>
-#include <opentelemetry/exporters/otlp/otlp_http_log_record_exporter_options.h>
 #include <opentelemetry/exporters/otlp/otlp_http_log_record_exporter_factory.h>
+#include <opentelemetry/exporters/otlp/otlp_http_log_record_exporter_options.h>
+#ifdef WITH_OTLP_GRPC
+#include <opentelemetry/exporters/otlp/otlp_grpc_log_record_exporter_factory.h>
+#include <opentelemetry/exporters/otlp/otlp_grpc_log_record_exporter_options.h>
+#endif
 #include <opentelemetry/logs/provider.h>
 #include <opentelemetry/logs/logger_provider.h>
 #include <opentelemetry/sdk/logs/logger_provider_factory.h>
 #include <opentelemetry/sdk/logs/simple_log_record_processor_factory.h>
 
 export module Logger;
-//import ProgramOptions;
+import FilterPickerOptions;
+import OTelOptions;
 import OTelSpdLog;
 
 namespace
@@ -44,24 +48,10 @@ void setVerbosityForSPDLOG(const int verbosity,
     if (verbosity >= 4){logger->set_level(spdlog::level::debug);}
 }
 
-}
-
-namespace UDataPacketService::Logger
-{
-
-/*
-export std::shared_ptr<spdlog::logger>
-    initializeGRPC(const std::string &endPoint,
-                   const bool )
-{
-
-}
-*/
-
-export std::shared_ptr<spdlog::logger>
-    initializeHTTP(const std::string &urlAndSuffix,
-                   const int verbosity,
-                   const bool exportLogs)
+std::shared_ptr<spdlog::logger>
+    initializeHTTP(const int verbosity,
+                   const bool exportLogs,
+                   const UFilterPicker::OTelOptions::HTTPLog &options)
 {
     std::shared_ptr<spdlog::logger> logger{nullptr};
     auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt> ();
@@ -69,11 +59,7 @@ export std::shared_ptr<spdlog::logger>
     {
         namespace otel = opentelemetry;
         otel::exporter::otlp::OtlpHttpLogRecordExporterOptions httpOptions;
-        httpOptions.url = urlAndSuffix;
-        //httpOptions.use_ssl_credentials = false;
-        //httpOptions.ssl_credentials_cacert_path = programOptions.otelGRPCOptions.certificatePath;
-        //using providerPtr
-        //    = otel::nostd::shared_ptr<opentelemetry::logs::LoggerProvider>;
+        httpOptions.url = options.url + options.suffix;
         auto exporter
             = otel::exporter::otlp::OtlpHttpLogRecordExporterFactory::Create(httpOptions);
         auto processor
@@ -82,7 +68,8 @@ export std::shared_ptr<spdlog::logger>
         loggerProvider
             = otel::sdk::logs::LoggerProviderFactory::Create(
                 std::move(processor));
-        const std::shared_ptr<opentelemetry::logs::LoggerProvider> apiProvider = loggerProvider;
+        const std::shared_ptr<opentelemetry::logs::LoggerProvider>
+            apiProvider = loggerProvider;
         otel::logs::Provider::SetLoggerProvider(apiProvider);
 
         // NOLINTBEGIN(misc-include-cleaner)
@@ -104,6 +91,84 @@ export std::shared_ptr<spdlog::logger>
     ::setVerbosityForSPDLOG(verbosity, &*logger);
     return logger;
 }
+
+#ifdef WITH_OTLP_GRPC
+std::shared_ptr<spdlog::logger>
+    initializeGRPC(const int verbosity,
+                   const bool exportLogs,
+                   UFilterPicker::OTelOptions::GRPCLog &options)
+{
+    std::shared_ptr<spdlog::logger> logger{nullptr};
+    auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt> ();
+    if (exportLogs)
+    {
+        namespace otel = opentelemetry;
+        otel::exporter::otlp::OtlpGrpcLogRecordExporterOptions grpcOptions;
+        grpcOptions.endpoint = options.url;
+        //grpcOptions.timeout = duration?
+        grpcOptions.use_ssl_credentials = false;
+        if (!options.certificatePath.empty() &&
+            std::filesystem::exists(options.certificatePath))
+        {
+            grpcOptions.use_ssl_credentials = true;
+            grpcOptions.ssl_credentials_cacert_path = options.certificatePath;
+        }
+        auto exporter
+            = otel::exporter::otlp::OtlpGrpcLogRecordExporterFactory::Create(grpcOptions);
+        auto processor
+            = otel::sdk::logs::SimpleLogRecordProcessorFactory::Create(
+                 std::move(exporter));
+        loggerProvider
+            = otel::sdk::logs::LoggerProviderFactory::Create(
+                std::move(processor));
+        const std::shared_ptr<opentelemetry::logs::LoggerProvider>
+            apiProvider = loggerProvider;
+        otel::logs::Provider::SetLoggerProvider(apiProvider);
+/*
+
+        auto otelLogger
+            = std::make_shared<spdlog::sinks::OpenTelemetrySink<std::mutex>> ();
+
+        logger
+            = std::make_shared<spdlog::logger>
+              (spdlog::logger ("OTelLogger", {otelLogger, consoleSink}));
+*/
+    }
+    else
+    {
+        logger
+            = std::make_shared<spdlog::logger>
+              (spdlog::logger ("", {consoleSink}));
+    }
+    // Verbosity
+    ::setVerbosityForSPDLOG(verbosity, &*logger);
+    return logger;
+}
+#endif
+
+}
+            
+namespace UFilterPicker::Logger
+{           
+
+export
+std::shared_ptr<spdlog::logger>
+    initialize(UFilterPicker::Options::ProgramOptions &options)
+{
+    if (options.exportLogsWithHTTP)
+    {
+        return ::initializeHTTP(options.verbosity, options.exportLogs, options.otelHTTPLogOptions);
+    }
+    else
+    {
+#ifdef WITH_OTLP_GRPC
+        return ::initializeGRPC(options.verbosity, options.exportLogs, options.otelGRPCLogOptions);
+#else
+        throw std::runtime_error("Recompile with Conan and OTLP_GRPC");
+#endif
+    }
+}
+
 
 export void cleanup()
 {

@@ -1,9 +1,11 @@
+#include <cstddef>
 #include <iostream>
 #include <cstdint>
 #include <algorithm>
 #include <utility>
 #include <limits>
 #include <fstream>
+#include <stdexcept>
 #include <sstream>
 #include <string>
 #include <chrono>
@@ -28,6 +30,7 @@
 #include <boost/property_tree/ini_parser.hpp>
 */
 #include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h> 
 #include <uDataPacketServiceAPI/v1/packet.pb.h>
 //#include <uDataPacketImport/grpc/client.hpp>
 //#include <uDataPacketImport/grpc/clientOptions.hpp>
@@ -36,6 +39,7 @@
 //#include <readerwriterqueue.h>
 #include "uFilterPicker/utilities.hpp"
 #include "uFilterPicker/detector.hpp"
+#include "uFilterPicker/subscriberOptions.hpp"
 /*
 #include "uFilterPicker/pipeline.hpp"
 #include "uFilterPicker/characteristicFunction.hpp"
@@ -53,6 +57,7 @@ import FilterPickerOptions;
 namespace
 {
 
+/*
 struct PacketImport
 {
     std::string host;
@@ -60,10 +65,11 @@ struct PacketImport
     std::string clientCertificate;
     std::string clientToken;
 };
+*/
 
 struct ProgramOptions
 {
-    PacketImport importOptions;
+    UFilterPicker::SubscriberOptions subscriberOptions;
     std::string applicationName{APPLICATION_NAME}; 
     std::vector<UDataPacketServiceAPI::V1::StreamIdentifier> streamIdentifiers;
     int verbosity{3};
@@ -532,9 +538,10 @@ int main(int argc, char *argv[])
     }
     catch (const std::exception &e)
     {
-        //NOLINTBEGIN(performance-avoid-endl)
-        std::cerr << e.what() << std::endl;
-        //NOLINTEND(performance-avoid-endl)
+        auto consoleLogger = spdlog::stdout_color_st("console");
+        SPDLOG_LOGGER_CRITICAL(consoleLogger,
+                               "Failed to read command line arguments because {}",
+                               std::string {e.what()});
         return EXIT_FAILURE;
     }
 
@@ -546,216 +553,35 @@ int main(int argc, char *argv[])
     }
     catch (const std::exception &e) 
     {   
-        spdlog::error(e.what());
+        auto consoleLogger = spdlog::stdout_color_st("console");
+        SPDLOG_LOGGER_CRITICAL(consoleLogger,
+                               "Failed to read program options because {}",
+                               std::string {e.what()});
         return EXIT_FAILURE;
     }
 
+    auto logger = UFilterPicker::Logger::initialize(programOptions);
 /*
     std::unique_ptr<::NetworkDetector> networkDetector;
     try
     {
-//        networkDetector = std::make_unique<::NetworkDetector> (programOptions);
+        networkDetector = std::make_unique<::NetworkDetector> (programOptions);
     }
     catch (const std::exception &e)
     {
-        spdlog::error(e.what());
+        SPDLOG_LOGGER_CRITICAL(logger,
+                               "Failed to create network detector because {}",
+                               std::string {e.what()});
         return EXIT_FAILURE;
     }
+*/
 
+/*
 //  networkDetector->start();
     std::this_thread::sleep_for(std::chrono::seconds {120});
 //    networkDetector->stop();
 */
+    UFilterPicker::Logger::cleanup();
     return EXIT_SUCCESS;
-}
-
-///--------------------------------------------------------------------------///
-///                            Utility Functions                             ///
-///--------------------------------------------------------------------------///
-namespace
-{
-
-/*
-/// Read the program options from the command line
-std::pair<std::string, bool> parseCommandLineOptions(int argc, char *argv[])
-{
-    std::string iniFile;
-    boost::program_options::options_description desc(R"""(
-The uFilterPickerDetector applies the Lomax Filter Picker to waveforms 
-collected at UUSS.  The result is a detection signal.
-
-    uFilterPickerDetector --ini=detector.ini
-
-Allowed options)""");
-    desc.add_options()
-        ("help", "Produces this help message")
-        ("ini",  boost::program_options::value<std::string> (),
-                 "The initialization file for this executable");
-    boost::program_options::variables_map vm;
-    boost::program_options::store(
-        boost::program_options::parse_command_line(argc, argv, desc), vm);
-    boost::program_options::notify(vm);
-    if (vm.count("help"))
-    {
-        std::cout << desc << std::endl;
-        return {iniFile, true};
-    }
-    if (vm.count("ini"))
-    {
-        iniFile = vm["ini"].as<std::string>();
-        if (!std::filesystem::exists(iniFile))
-        {
-            throw std::runtime_error("Initialization file: " + iniFile
-                                   + " does not exist");
-        }
-    }
-    return {iniFile, false};
-}
-
-[[nodiscard]] std::string
-loadStringFromFile(const std::filesystem::path &path)
-{
-    std::string result;
-    if (!std::filesystem::exists(path)){return result;}
-    std::ifstream file(path);
-    if (!file.is_open())
-    {   
-        throw std::runtime_error("Failed to open " + path.string());
-    }   
-    std::stringstream sstr;
-    sstr << file.rdbuf();
-    file.close(); 
-    result = sstr.str();
-    return result;
-}
-*/
-
-/*
-::ProgramOptions parseIniFile(const std::filesystem::path &iniFile)
-{
-    ::ProgramOptions options;
-    if (!std::filesystem::exists(iniFile)){return options;}
-    // Parse the initialization file
-    boost::property_tree::ptree propertyTree;
-    boost::property_tree::ini_parser::read_ini(iniFile, propertyTree);
-
-    // Application name
-    options.applicationName
-        = propertyTree.get<std::string> ("General.applicationName",
-                                         options.applicationName);
-    if (options.applicationName.empty())
-    {   
-        options.applicationName = APPLICATION_NAME;
-    }   
-    options.verbosity
-        = propertyTree.get<int> ("General.verbosity", options.verbosity);
-
-    
-    std::string section{"GRPCClient"};
-    ::PacketImport importOptions;
-    importOptions.host
-        = propertyTree.get<std::string> (section + ".host");
-    importOptions.port
-        = propertyTree.get<uint16_t> (section + ".port");
-    auto certificate
-        = propertyTree.get_optional<std::string>
-          (section + ".clientCertificate");
-    if (certificate)
-    {
-        std::filesystem::path certificatePath{*certificate};
-        if (std::filesystem::exists(certificatePath))
-        {   
-            importOptions.clientCertificate
-                = ::loadStringFromFile(certificatePath);
-        }
-    }
-    auto token
-       = propertyTree.get_optional<std::string>
-         (section + ".clientToken"); 
-    if (token)
-    {
-        if (importOptions.clientCertificate.empty())
-        {
-            throw std::invalid_argument(
-                "clientCertificate required to use token in section "
-              + section);
-        }
-        if (token->empty())
-        {
-            throw std::invalid_argument("Token is empty");
-        }
-        importOptions.clientToken = *token;
-    }
-    options.importOptions = importOptions;
-
-    // Get the streams to process
-    std::vector<UDataPacketServiceAPI::V1::StreamIdentifier> streams;
-    std::set<std::string> addedStreams;
-    for (int i = 1; i <= std::numeric_limits<int16_t>::max(); ++i)
-    {
-        const std::string key{"Streams.stream_" + std::to_string(i)};
-        auto streamName
-           = propertyTree.get_optional<std::string> (key);
-        if (streamName)
-        {
-            std::string network;
-            std::string station;
-            std::string channel;
-            std::string locationCode{"--"};
-            std::vector<std::string> splitStreamName;
-            boost::split(splitStreamName, *streamName,
-                         boost::is_any_of("._ \n\t"));
-            if (splitStreamName.size() == 3 || splitStreamName.size() == 4)
-            {
-                network = boost::trim_copy(splitStreamName.at(0));
-                station = boost::trim_copy(splitStreamName.at(1));
-                channel = boost::trim_copy(splitStreamName.at(2));
-                if (splitStreamName.size() == 4)
-                {
-                    locationCode = boost::trim_copy(splitStreamName.at(3));
-                }
-            }
-            else
-            {
-                throw std::invalid_argument(
-                    "Invalid stream - expecting NETWORK.STATION.CHANNEL.LOCATION; e.g., UU.CWU.HHZ.01 or PB.B205.EHZ.-- but got "
-                  + *streamName);
-            }
-            UDataPacketServiceAPI::V1::StreamIdentifier
-                identifier;
-            std::transform(network.begin(), network.end(), network.begin(), ::toupper);
-            std::transform(station.begin(), station.end(), station.begin(), ::toupper);
-            std::transform(channel.begin(), channel.end(), channel.begin(), ::toupper);
-            std::transform(locationCode.begin(), locationCode.end(), locationCode.begin(), ::toupper);
-            identifier.set_network(network);
-            identifier.set_station(station);
-            identifier.set_channel(channel);
-            identifier.set_location_code(locationCode);
-            auto identifierString = UFilterPicker::Utilities::toString(identifier);
-            if (addedStreams.contains(identifierString))
-            {
-                spdlog::warn(identifierString + " already exists; skipping");
-            }
-            else
-            {
-                spdlog::debug("Will subscribe to " + identifierString);
-                streams.push_back(std::move(identifier));
-                addedStreams.insert(identifierString);
-            }
-        }
-        else
-        {
-            break;
-        }
-    }
-    if (streams.empty())
-    {
-        throw std::invalid_argument("No streams specified");
-    }
-    options.streamIdentifiers = std::move(streams);
-
-    return options;
-}
-*/
 }
 
