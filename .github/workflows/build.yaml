@@ -136,7 +136,7 @@ jobs:
           echo $QUAY_ROBOT_PASSWORD | buildah login -u $QUAY_ROBOT_USER --password-stdin quay.io
           cd build/Release
           cp artifacts/*tar.gz ./
-          version=$(ls *tar.gz | sed 's/uSEEDLinkToRingServer-//g' | sed 's/-Linux.tar.gz//g') 
+          version=$(ls *tar.gz | sed 's/uFilterPicker-//g' | sed 's/-Linux.tar.gz//g') 
           echo "Will build container version ${version}"
           buildah bud -t ${CONTAINER_NAME}:${version} -t ${CONTAINER_NAME}:latest -f ./Dockerfile.u24
           buildah tag ${CONTAINER_NAME}:${version} quay.io/uuss/${QUAY_DIRECTORY}:${version}

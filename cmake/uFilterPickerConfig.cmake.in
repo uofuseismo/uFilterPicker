@@ -9,8 +9,11 @@
 #
 # ``uFilterPicker_FOUND``
 #   True indicates uFilterPicker was found.
-# ``uFilterPicker::uFilterpIcker``
+# ``uFilterPicker::uFilterPicker``
 #   The filter picker library, if found.
+include(CMakeFindDependencyMacro)
+
+find_dependency(TBB)
 
 @PACKAGE_INIT@
 

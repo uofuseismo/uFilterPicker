@@ -52,6 +52,7 @@ if (${BUILD_TRAINING})
 endif()
 
 FetchContent_Declare(uSignal
+                     EXCLUDE_FROM_ALL
                      SYSTEM
                      GIT_REPOSITORY https://github.com/uofuseismo/uSignal.git
                      GIT_TAG f63e598)
@@ -116,7 +117,7 @@ target_include_directories(libuFilterPicker
                            PUBLIC  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
                            PRIVATE $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
                            PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-                           PUBLIC  $<INSTALL_INTERFACE:/install>)
+                           PUBLIC  $<INSTALL_INTERFACE:>)
 target_link_libraries(libuFilterPicker
                       PRIVATE protobuf::libprotobuf
                               spdlog::spdlog_header_only
@@ -129,7 +130,8 @@ target_link_libraries(libuFilterPicker
 target_sources(libuFilterPicker
                PUBLIC FILE_SET HEADERS
                       BASE_DIRS
-                         ${CMAKE_CURRENT_SOURCE_DIR}
+                         include
+                         ${CMAKE_CURRENT_BINARY_DIR}/include
                       FILES
                          ${LIBRARY_HEADER_FILES})
 #               PUBLIC FILE_SET CXX_MODULES
@@ -331,15 +333,15 @@ write_basic_package_version_file(
 install(TARGETS libuFilterPicker
         EXPORT ${PROJECT_NAME}Targets
         FILE_SET HEADERS
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        FILE_SET CXX_MODULES
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        #DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        #FILE_SET CXX_MODULES
+        #DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         COMPONENT libraries)
-#install(TARGETS detect
-#        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-#        COMPONENT applications)
+install(TARGETS uFilterPicker
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        COMPONENT applications)
 install(EXPORT ${PROJECT_NAME}Targets
         NAMESPACE ${PROJECT_NAME}::
         FILE ${PROJECT_NAME}Targets.cmake
@@ -350,9 +352,31 @@ install(FILES
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
 ##########################################################################################
-#                                     CPACK Packaging                                    #
+#                                        Containers                                      #
 ##########################################################################################
 include(CPackComponent)
+if (${BUILD_CONTAINER})
+   message("Will configure container")
+   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/scripts/Dockerfile.u24.in
+                  ${CMAKE_CURRENT_BINARY_DIR}/Dockerfile.u24 @ONLY)
+   add_custom_target(${PROJECT_NAME}-u24
+                     COMMENT "Creating container file for ${PROJECT_NAME}"
+                     COMMAND ${CMAKE_CPACK_COMMAND} -G DEB 
+                     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} VERBATIM)
+   add_dependencies(${PROJECT_NAME}-u24 uFilterPicker libuFilterPicker)
+   find_program(buildah_EXECUTABLE buildah)
+   if (buildah_EXECUTABLE)
+      add_custom_target(buildah
+                        COMMENT "Preparing the container with buildah"
+                        COMMAND ${buildah_EXECUTABLE} bud -t ufilterpicker:${PROJECT_VERSION} -t ufilterpicker:latest -f ./Dockerfile.u24
+                        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} VERBATIM)
+      add_dependencies(buildah ${PROJECT_NAME}-u24)
+   endif()
+endif()
+
+##########################################################################################
+#                                     CPACK Packaging                                    #
+##########################################################################################
 set(CPACK_PACKAGE_NAME ${PROJECT_NAME})
 set(CPACK_PACKAGE_VENDOR "UUSS")
 set(CPACK_PACKAGE_CONTACT "ben.baker@utah.edu")
