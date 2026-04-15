@@ -16,7 +16,9 @@ public:
     {
         USignal::Transforms::Hilbert::FiniteImpulseResponseOptions options;
         auto order = envelopeOptions.order;
-        if (order%2 == 1){order = order + 1;}
+        // Number of coefficients is order - 1.  I want an odd number
+        // of coefficients so the order should be even.
+        if (order%2 != 0){order = order + 1;}
         options.setOrder(order);
         options.setBeta(envelopeOptions.beta);
         constexpr bool isRealTime{true};

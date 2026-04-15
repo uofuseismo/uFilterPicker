@@ -83,7 +83,7 @@ Pipeline::Pipeline(
     auto lowCorner = pImpl->mFilter->getPassBand().first;
     auto envelopeOrder = pImpl->mEnvelope->getOrder();
 #ifndef NDEBUG
-    assert(envelopeOrder%2 != 0); // Order forced to be even so odd number of coeffs
+    assert(envelopeOrder%2 == 0); // Order forced to be even so odd number of coeffs
 #endif
     auto cfOrder = pImpl->mCharacteristicFunction->getWindowLength() - 1;
     const StartUpParameters startUpParms{pImpl->mNominalSamplingRate,
@@ -99,7 +99,15 @@ Pipeline::Pipeline(
     // (1) The IIR filter burns a few samples to get going.  Each cascade
     //     has three coefficients.  But one sample is the `current' sample.
     //     So the delay line is 2*nCascades.
-    // (2) The envelope's group delay is it's length/2.
+    // (2) The envelope's group delay is it's length/2 = (order + 1)/2.
+    //     For example, if there's 5 coefficients, then the order is 4.
+    //     Moreover, assumed the coefficients are {0, 0, 1, 0, 0}
+    //     Then a filtered signal looks like:
+    //     y[n] = x[n] b[0] + x[n-1] b[1] + x[n-2] b[2] + x[n-3] b[3]  + x[n-4] b[4]
+    //          = x[n-2] b[2].
+    //     i.e., a delay of 2 samples.  With a sampling period of T we then have
+    //     the delay as  T*(order + 1)/2 which simplifies for to T*(order/2) 
+    //     for even orders.
     // (3) The characteristic function looks backwards so it doesn't introduce
     //     a delay.
     auto nCascades = pImpl->mFilter->getNumberOfCascades();

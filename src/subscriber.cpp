@@ -145,15 +145,28 @@ public:
             }
             if (!mKeepRunning->load())
             {
-                mClientContext.TryCancel();
+                if (!mTryCancel.load())
+                {
+                    SPDLOG_LOGGER_DEBUG(mLogger, "Cancelling");
+                    mTryCancel.store(true);
+                    mClientContext.TryCancel();
+                }
             }
-            StartRead(&mPacket);
+            else
+            {
+                StartRead(&mPacket);
+            }
         }
         else
         {
             if (!mKeepRunning->load())
             {
-                mClientContext.TryCancel();
+                if (!mTryCancel.load())
+                {
+                    SPDLOG_LOGGER_DEBUG(mLogger, "Cancelling");
+                    mTryCancel.store(true);
+                    mClientContext.TryCancel();
+                }
             }
         }
     }
@@ -168,73 +181,32 @@ public:
 
     [[nodiscard]] std::pair<grpc::Status, bool> await()
     {
-        std::unique_lock<std::mutex> lock(mMutex);
-        mConditionVariable.wait(lock, [this] {return mDone;});
+        while (!mDone)
+        {
+            if (!mKeepRunning->load())
+            {
+                if (!mTryCancel.load())
+                {
+                    SPDLOG_LOGGER_DEBUG(mLogger, "Cancelling");
+                    mTryCancel.store(true);
+                    mClientContext.TryCancel();
+                }
+            }
+            constexpr std::chrono::milliseconds timeOut{250};
+            std::unique_lock<std::mutex> lock(mMutex);
+            //mConditionVariable.wait(lock, [this] {return mDone;});
+            mConditionVariable.wait_for(lock, timeOut,
+                                        [this]
+                                        {
+                                            return mDone;
+                                        }); 
+        }
         return std::pair{std::move(mStatus), mHadSuccessfulRead};
     }
 
-    void addPacket(UDataPacketServiceAPI::V1::Packet &&packet)
+    void kill()
     {
-        if (!packet.has_stream_identifier())
-        {
-            throw std::invalid_argument("Stream identifier not set");
-        }
-        auto streamIdentifier= packet.stream_identifier();
-        std::string name;
-        try
-        {
-            name = UFilterPicker::Utilities::toString(streamIdentifier);
-        }
-        catch (const std::exception &e)
-        {
-            SPDLOG_LOGGER_ERROR(mLogger,
-                                "Failed to get packet name because {}",
-                                std::string {e.what()});
-            return;
-        }
- 
-        std::chrono::microseconds endTime{0};
-        try
-        {
-            endTime
-                = UFilterPicker::Utilities::getEndTime
-                  <std::chrono::microseconds> (packet);
-        }
-        catch (const std::exception &e)
-        {
-            SPDLOG_LOGGER_ERROR(mLogger,
-                                "Failed to get packet end time because {}",
-                                std::string {e.what()});
-        }
-
- 
-        try
-        {
-            mAddPacketCallback(std::move(packet));
-        }
-        catch (const std::exception &e) 
-        {
-            SPDLOG_LOGGER_ERROR(mLogger,
-                                "Failed to add packet because {}",
-                                std::string {e.what()});
-            return;
-        }
-
-        auto idx = mLastPacketReceivedMap.find(name);
-        if (idx != mLastPacketReceivedMap.end())
-        {
-            idx->second.second = std::max(endTime, idx->second.second);
-        }
-        else
-        {
-            auto streamTime = std::pair{std::move(streamIdentifier), endTime};
-            auto added = mLastPacketReceivedMap.insert(
-               std::pair {name, std::move(streamTime) }).second;
-            if (!added)
-            {
-                SPDLOG_LOGGER_WARN(mLogger, "Failed to add {} to map", name);
-            }
-        }
+        mClientContext.TryCancel();
     }
 
 #ifndef NDEBUG
@@ -247,6 +219,8 @@ public:
     AsyncSubscriber() = delete;
     AsyncSubscriber(const AsyncSubscriber &) = delete;
     AsyncSubscriber(AsyncSubscriber &&) noexcept = delete;
+    AsyncSubscriber& operator=(const AsyncSubscriber &) = delete;
+    AsyncSubscriber& operator=(AsyncSubscriber &&) noexcept = delete;
 private:
     grpc::ClientContext mClientContext;
     UDataPacketServiceAPI::V1::SubscriptionRequest mRequest;
@@ -254,15 +228,6 @@ private:
     <
         void (UDataPacketServiceAPI::V1::Packet &&packet)
     > mAddPacketCallback;
-    oneapi::tbb::concurrent_map
-    <
-        std::string,
-        std::pair
-        <
-           UDataPacketServiceAPI::V1::StreamIdentifier,
-           std::chrono::microseconds
-        >
-    > mLastPacketReceivedMap;
     std::shared_ptr<spdlog::logger> mLogger;
     std::mutex mMutex;
     std::condition_variable mConditionVariable;
@@ -270,6 +235,7 @@ private:
     grpc::Status mStatus{grpc::Status::OK};
     bool mDone{false};
     std::atomic<bool> *mKeepRunning{nullptr};
+    std::atomic<bool> mTryCancel{false};
     bool mHadSuccessfulRead{false};
 };
 
@@ -312,12 +278,14 @@ public:
 
     std::future<void> start()
     {
+        mShutdownRequested = false;
         mKeepRunning.store(true);
         return std::async(&SubscriberImpl::acquirePackets, this);
     }
 
     void stop()                    
     {
+        SPDLOG_LOGGER_INFO(mLogger, "stop it");
         mShutdownRequested = true;
         mShutdownCondition.notify_all();
         mKeepRunning.store(false);
@@ -348,20 +316,25 @@ public:
                 lock.unlock();
                 if (!mKeepRunning.load()){break;}
             }
-            // Create channel
-            auto channel
-                = ::createChannel(mOptions.getGRPCOptions(), mLogger.get());
-            auto stub = UDataPacketServiceAPI::V1::Broadcast::NewStub(channel);
-
+            // Create request
             UDataPacketServiceAPI::V1::SubscriptionRequest request;
             auto subscriberIdentifier = mOptions.getIdentifier();
             if (subscriberIdentifier)
             {
                 request.set_identifier(*subscriberIdentifier);
             }   
+            for (const auto &selection : mOptions.getStreamIdentifiers())
+            {
+                *request.add_selections() = selection;
+            }
+            // Create channel
+            auto channel
+                = ::createChannel(mOptions.getGRPCOptions(), mLogger.get());
+            auto stub = UDataPacketServiceAPI::V1::Broadcast::NewStub(channel);
+            // Fire off the subscriber
             AsyncSubscriber subscriber{stub.get(),
                                        request,
-                                       mAddPacketCallback,
+                                       mOverrideAddPacketCallback,
                                        mLogger,
                                        &mKeepRunning};
             auto [status, hadSuccessfulRead] = subscriber.await();
@@ -413,11 +386,84 @@ public:
             throw std::runtime_error("Premature end of subscriber thread");
         }
         SPDLOG_LOGGER_INFO(mLogger, "Subscriber thread exiting");
+
+    }
+  
+    void addPacket(UDataPacketServiceAPI::V1::Packet &&packet)
+    { 
+        auto streamIdentifier = packet.stream_identifier();
+        std::string name;
+        try
+        {
+            name = Utilities::toString(streamIdentifier);
+        }
+        catch (const std::exception &e)
+        {
+            SPDLOG_LOGGER_ERROR(mLogger,
+                                "Failed to get name because {}",
+                                std::string {e.what()});
+        }
+
+        std::chrono::microseconds endTime{0};
+        try
+        {
+            endTime
+                = Utilities::getEndTime<std::chrono::microseconds> (packet);
+        }
+        catch (const std::exception &e)
+        {
+            SPDLOG_LOGGER_ERROR(mLogger,
+                                "Failed to get packet end time for {} because {}",
+                                name, std::string {e.what()});
+        }
+
+        try
+        {
+            mAddPacketCallback(std::move(packet));
+        }
+        catch (const std::exception &e)
+        {
+            SPDLOG_LOGGER_ERROR(mLogger,
+                                "Failed to add packet because {}",
+                                std::string {e.what()});
+            return;
+        }
+
+        auto idx = mLastPacketReceivedMap.find(name);
+        if (idx != mLastPacketReceivedMap.end())
+        {
+            idx->second.second = std::max(endTime, idx->second.second);
+        }
+        else
+        {
+            auto streamTime = std::pair{std::move(streamIdentifier), endTime};
+            auto added = mLastPacketReceivedMap.insert(
+               std::pair {name, std::move(streamTime) }).second;
+            if (!added)
+            {
+                SPDLOG_LOGGER_WARN(mLogger, "Failed to add {} to map", name);
+            }
+        }
     }
 //private:
     SubscriberOptions mOptions;
     std::function<void (UDataPacketServiceAPI::V1::Packet &&)> mAddPacketCallback;
+    std::function<void(UDataPacketServiceAPI::V1::Packet &&)>
+        mOverrideAddPacketCallback
+    {
+        std::bind(&SubscriberImpl::addPacket, this,
+                  std::placeholders::_1)
+    };
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
+    oneapi::tbb::concurrent_map
+    <   
+        std::string,
+        std::pair
+        <
+           UDataPacketServiceAPI::V1::StreamIdentifier,
+           std::chrono::microseconds
+        >
+    > mLastPacketReceivedMap;
     mutable std::mutex mShutdownMutex;
     std::condition_variable mShutdownCondition;
     std::atomic<bool> mKeepRunning{true};

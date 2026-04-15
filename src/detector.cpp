@@ -37,9 +37,10 @@ std::unique_ptr<UFilterPicker::Pipeline>
     auto narrowBandFilter
         = std::make_unique<UFilterPicker::NarrowBandFilter>
           (butterworthOrder, passband, samplingRate);
+    const int envelopeOrder{lengths.envelope - 1};
     constexpr double kaiserBeta{8}; // Unused
     const UFilterPicker::EnvelopeOptions
-        envelopeOptions{lengths.envelope, kaiserBeta};
+        envelopeOptions{envelopeOrder, kaiserBeta};
     auto envelope
         = std::make_unique<UFilterPicker::Envelope> (envelopeOptions); //Length);
     auto characteristicFunction

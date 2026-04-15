@@ -1,3 +1,5 @@
+#include <signal.h>
+#include <memory>
 #include <cstddef>
 #include <csignal>
 #include <iostream>
@@ -60,186 +62,20 @@ import FilterPickerOptions;
 namespace
 {
 
+volatile std::sig_atomic_t mSignalStatus;
 std::atomic_bool mInterrupted{false};
-
-/*
-struct PacketImport
-{
-    std::string host;
-    uint16_t port;
-    std::string clientCertificate;
-    std::string clientToken;
-};
-
-struct ProgramOptions
-{
-    UFilterPicker::SubscriberOptions subscriberOptions;
-    std::string applicationName{APPLICATION_NAME}; 
-    std::vector<UDataPacketServiceAPI::V1::StreamIdentifier> streamIdentifiers;
-    int verbosity{3};
-};
-
-[[nodiscard]] std::string toString(const UDataPacketServiceAPI::V1::StreamIdentifier &identifier)
-{
-    auto name = identifier.network() 
-              + "." + identifier.station()
-              + "." + identifier.channel()
-              + "." + identifier.location_code();
-    std::transform(name.begin(), name.end(), name.begin(), ::toupper);
-    return name;
-}
-
-[[nodiscard]] std::string toString(const UDataPacketServiceAPI::V1::Packet &packet)
-{
-    return ::toString(packet.stream_identifier());
-}
-
-[[nodiscard]] std::pair<std::string, bool> parseCommandLineOptions(int argc, char *argv[]);
-[[nodiscard]] ::ProgramOptions parseIniFile(const std::filesystem::path &iniFile);
-*/
 
 }
 
 namespace
 {
 
-/*
-std::unique_ptr<UFilterPicker::Pipeline>
-    createPipeline(const int butterworthOrder,
-                   const std::pair<double, double> &passband,
-                   const int envelopeLength,
-                   const int characteristicFunctionLength,
-                   const double samplingRate)
+struct DetectorPicker
 {
-    auto narrowBandFilter
-        = std::make_unique<UFilterPicker::NarrowBandFilter>
-          (butterworthOrder, passband, samplingRate);
-    UFilterPicker::EnvelopeOptions envelopeOptions{envelopeLength, 8.0};
-    auto envelope
-        = std::make_unique<UFilterPicker::Envelope> (envelopeOptions); //Length);
-    auto characteristicFunction
-        = std::make_unique<UFilterPicker::CharacteristicFunction>
-          (characteristicFunctionLength);
-    auto pipeline
-        = std::make_unique<UFilterPicker::Pipeline> (std::move(narrowBandFilter),
-                                                     std::move(envelope),
-                                                     std::move(characteristicFunction)); 
-    return pipeline;
-} 
-
-std::unique_ptr<UFilterPicker::Detector>
-    createDetector(const int butterworthOrder,
-                   const std::vector< std::pair<double, double> > &passbands,
-                   const int envelopeLength,
-                   const int characteristicFunctionLength,
-                   const double samplingRate)
-{
-    std::vector<std::unique_ptr<UFilterPicker::Pipeline>> pipelines;
-    for (const auto &passband : passbands)
-    {   
-        auto pipeline = ::createPipeline(butterworthOrder,
-                                         passband,
-                                         envelopeLength,
-                                         characteristicFunctionLength,
-                                         samplingRate);
-        pipelines.push_back(std::move(pipeline));
-    }   
-    auto detector
-        = std::make_unique<UFilterPicker::Detector> (std::move(pipelines));
-    return detector;
-}
-
-std::unique_ptr<UFilterPicker::Detector>
-    createBroadbandDetector100Hz()
-{
-    constexpr int butterworthOrder{5};
-    constexpr int envelopeLength{400};
-    constexpr int characteristicFunctionLength{400};
-    constexpr double samplingRate{100}; 
-    auto detector = ::createDetector(butterworthOrder, //5,
-                                     std::vector<std::pair<double, double>> 
-                                     {
-                                        { 3 - 1,  8 + 3},
-                                        { 8 - 3, 13 + 3},
-                                        {13 - 3, 18 + 3},
-                                        {18 - 3, 23 + 3},
-                                        {23 - 3, 28 + 3},
-                                        {28 - 3, 33 + 3}
-                                     },
-                                     envelopeLength, //400,
-                                     characteristicFunctionLength, //400,
-                                     samplingRate);
-     return detector;
-}
-
-std::unique_ptr<UFilterPicker::ThresholdTrigger>
-    createBroadbandThresholdTrigger100Hz(
-        const std::pair<double, double> &onAndOffThreshold = std::pair<double, double> {6, 5})
-{
-    return std::make_unique<UFilterPicker::ThresholdTrigger>
-           (onAndOffThreshold);
-}
-
-[[nodiscard]]
-    bool consistentSamplingRate(const double nominalSamplingRate,
-                                const double packetSamplingRate)
-{
-    if (std::abs(nominalSamplingRate - 100.0) < 1.e-5)
-    {
-        if (std::abs(nominalSamplingRate - packetSamplingRate) > 0.01/2)
-        {
-            return false;
-        }
-        return true;
-    }
-    else if (std::abs(nominalSamplingRate - 200.0) < 1.e-5)
-    {
-        if (std::abs(nominalSamplingRate - packetSamplingRate) > 0.005/2)
-        {
-            return false;
-        }
-        return true;
-    }
-    else if (std::abs(nominalSamplingRate - 250.0) < 1.e-5)
-    {
-        if (std::abs(nominalSamplingRate - packetSamplingRate) > 0.004/2)
-        {
-            return false;
-        }
-        return true;
-    }
-    else if (std::abs(nominalSamplingRate - 500.0) < 1.e-5)
-    {
-        if (std::abs(nominalSamplingRate - packetSamplingRate) > 0.002/2)
-        {
-            return false;
-        }
-        return true;
-    }
-    else if (std::abs(nominalSamplingRate - 1000.0) < 1.e-5)
-    {
-        if (std::abs(nominalSamplingRate - packetSamplingRate) > 0.0001/2)
-        {
-            return false;
-        }
-        return true;
-    }
-    else if (std::abs(nominalSamplingRate - 40.0) < 1.e-5)
-    {
-        if (std::abs(nominalSamplingRate - packetSamplingRate) > 0.025/2)
-        {
-            return false;
-        }
-        return true;
-    }
-    else
-    {
-        spdlog::warn("Unhandled nominal sampling rate "
-                   + std::to_string(nominalSamplingRate));
-    }
-    return std::abs(nominalSamplingRate - packetSamplingRate) < 1.e-4;
-}
-*/
+    std::unique_ptr<UFilterPicker::Detector> detector{nullptr};
+    std::unique_ptr<UFilterPicker::ThresholdTrigger> trigger{nullptr};
+    double samplingRate{100};
+};
 
 class Detector
 {
@@ -395,26 +231,39 @@ public:
 
         // Create a subscriber
         mPacketSubscriber
-            = std::make_unique<UFilterPicker::Subscriber> (options.packetSubscriberOptions, mImportCallback, mLogger);
+            = std::make_unique<UFilterPicker::Subscriber> 
+              (options.packetSubscriberOptions, mImportCallback, mLogger);
+
+        // Create some detectors
+        for (const auto &streamIdentifier :
+             mOptions.packetSubscriberOptions.getStreamIdentifiers())
+        {
+            auto streamName = UFilterPicker::Utilities::toString(streamIdentifier);
+            if (streamIdentifier.channel() != "HHZ")
+            {
+                throw std::invalid_argument("Only HHZ detectors implemented");
+            }
+            // TODO
+            auto detector = UFilterPicker::Detector::create100HzBroadband(); 
+            auto thresholdPicker = UFilterPicker::ThresholdTrigger::create100HzBroadband();
+            auto detectorPicker = std::make_unique<::DetectorPicker> (std::move(detector), std::move(thresholdPicker));
+            auto added
+                = mDetectorPickers.insert(
+                      std::pair {streamName,
+                                 std::move(detectorPicker)} ).second;
+            if (!added)
+            {
+                throw std::runtime_error("Failed to add detector "
+                                       + streamName);
+            }
+        }
+
         // Setup metrics
         if (mOptions.exportMetrics)
         {
 
         }
 /*
-        UDataPacketImport::GRPC::ClientOptions clientOptions;
-        clientOptions.setAddress(options.importOptions.host + ":"
-                               + std::to_string(options.importOptions.port));
-        if (!options.importOptions.clientCertificate.empty())
-        {
-            clientOptions.setCertificate(
-                options.importOptions.clientCertificate);
-            if (!options.importOptions.clientToken.empty())
-            {
-                clientOptions.setToken(options.importOptions.clientToken);
-            }
-        }
-std::cout << options.streamIdentifiers.size() << std::endl;
         mStreamsToProcess = options.streamIdentifiers;
         clientOptions.setStreamSelections(options.streamIdentifiers);
         mImportClient
@@ -422,61 +271,75 @@ std::cout << options.streamIdentifiers.size() << std::endl;
               (mImportCallback, clientOptions); 
 */
     }
+
     void publishCharacteristicFunctions()
     {
     }
+
     void filterPackets()
     {
-/*
         constexpr std::chrono::milliseconds timeOut{10};
 int np{0};
         while (mKeepRunning)
         {
-            UDataPacketServiceAPI::V1::Packet newPacket;
-            if (mImportQueue.try_dequeue(newPacket))
+            UDataPacketServiceAPI::V1::Packet packet;
+            if (mImportQueue.try_pop(packet))
             {
 np++;
 if (np > 1000){
  spdlog::warn("Terminating");
- mKeepRunning = false;
+ std::raise(SIGINT);
 }
                 try
                 {
-                    auto streamIdentifier
-                        = newPacket.getStreamIdentifier();
-                    auto streamIdentifierString = streamIdentifier.toString();
-                    if (!mStreamsToProcess.contains(streamIdentifier))
+                    auto streamName = UFilterPicker::Utilities::toString(packet);
+                    auto idx = mDetectorPickers.find(streamName);
+                    if (idx == mDetectorPickers.end())
                     {
-                         spdlog::warn("Received unwanted stream "
-                                    + streamIdentifierString);
-                         continue;
+                        SPDLOG_LOGGER_WARN(mLogger,
+                                      "Received packet from unwanted stream {}",
+                                      streamName);
+                        continue;
                     }
-                    
-                    if (!mDetectors.contains(streamIdentifierString))
+                    if (!packet.has_sampling_rate())
                     {
-                        auto detector
-                            = std::make_unique<::Detector> (streamIdentifier);
-                        mDetectors.insert( std::pair{streamIdentifierString,
-                                                     std::move(detector) } );
-                    } 
-                    auto idx = mDetectors.find(streamIdentifierString);
-#ifndef NDEBUG
-                    assert(idx != mDetectors.end());
-#else
-                    if (idx == mDetectors.end())
-                    {
-                        throw std::runtime_error("Algorithmic error");
+                        SPDLOG_LOGGER_WARN(mLogger,
+                            "Stream {} does not have sampling rate - skipping",
+                            streamName);
+                        continue;
                     }
-#endif
+                    auto samplingRate = packet.sampling_rate();
+                    auto packetStartTime
+                        = UFilterPicker::Utilities::getStartTime
+                          <std::chrono::microseconds> (packet);
+                    auto timeSeries
+                        = UFilterPicker::Utilities::toDoubleVector(packet);
+                    if (timeSeries.empty())
+                    {
+                        SPDLOG_LOGGER_WARN(mLogger,
+                                           "Empty packet detected for {}",
+                                           streamName);
+                        continue;
+                    }
+                    auto characteristicFunction
+                        = idx->second->detector->apply(timeSeries);
+                    auto onOffSignal = idx->second->trigger->apply(
+                            characteristicFunction,
+                            packetStartTime,
+                            samplingRate);
+/*
                     auto characteristicFunctionPacket
                         = idx->second->apply(newPacket); 
                     if (characteristicFunctionPacket)
                     {
                     } 
+*/
                  }
                  catch (const std::exception &e)
                  {
-                    spdlog::error("Failed to process packet " + std::string {e.what()});
+                    SPDLOG_LOGGER_ERROR(mLogger,
+                                        "Failed to process packet because {} ",
+                                        std::string {e.what()});
                  }
             }
             else
@@ -484,7 +347,6 @@ if (np > 1000){
                 std::this_thread::sleep_for(timeOut);
             }
         }
-*/
     }
  
     /// Callback for packet subscriber
@@ -512,49 +374,55 @@ if (np > 1000){
     /// Starts the application
     void start()
     {
-        mKeepRunning = true;
-        mImportFuture = mPacketSubscriber->start();
+#ifndef NDEBUG
+        assert(mPacketSubscriber != nullptr);
+#endif
+        mKeepRunning.store(true);
+        mPacketSubscriptionFuture = mPacketSubscriber->start();
         mDataProcessingFuture = std::async(&NetworkDetector::filterPackets, this);
         handleMainThread();
     }
+
+    /// Stops the application
     void stop()
     {
-        mKeepRunning = false;
-        mPacketSubscriber->stop();
+        mKeepRunning.store(false);
+        if (mPacketSubscriber)
+        {
+            mPacketSubscriber->stop();
+        }
     }
 
     /// Keeps the main thread occupied
     void handleMainThread()
     {
         SPDLOG_LOGGER_DEBUG(mLogger, "Main thread entering waiting loop");
-        catchSignals();
+        stdCatchSignals();
+        while (!mStopRequested)
         {
-            while (!mStopRequested)
+            if (mInterrupted)
             {
-                if (mInterrupted)
-                {
-                    SPDLOG_LOGGER_INFO(mLogger,
-                                       "SIGINT/SIGTERM signal received!");
-                    mStopRequested = true;
-                    break;
-                }
-                constexpr std::chrono::milliseconds waitForFuture {5};
-                if (!checkFuturesOkay(waitForFuture))
-                {
-                    SPDLOG_LOGGER_CRITICAL(mLogger,
-                       "Futures exception caught; terminating app");
-                    mStopRequested = true;
-                    break;
-                }
-                printSummary();
-                std::unique_lock<std::mutex> lock(mStopMutex);
-                constexpr std::chrono::milliseconds pause{100};
-                mStopCondition.wait_for(lock, pause,
-                                        [this]
-                                        {
-                                            return mStopRequested;
-                                        });
+                 SPDLOG_LOGGER_INFO(mLogger,
+                                   "SIGINT/SIGTERM signal received!");
+                mStopRequested = true;
+                break;
             }
+            constexpr std::chrono::milliseconds waitForFuture {5};
+            if (!checkFuturesOkay(waitForFuture))
+                {
+                SPDLOG_LOGGER_CRITICAL(mLogger,
+                   "Futures exception caught; terminating app");
+                mStopRequested = true;
+                break;
+            }
+            printSummary();
+            std::unique_lock<std::mutex> lock(mStopMutex);
+            constexpr std::chrono::milliseconds pause{100};
+            mStopCondition.wait_for(lock, pause,
+                                    [this]
+                                    {
+                                        return mStopRequested;
+                                    });
         }
         if (mStopRequested)
         {
@@ -579,8 +447,11 @@ if (np > 1000){
         bool isOkay{true};
         try
         {
-            auto status = mImportFuture.wait_for(timeOut);
-            if (status == std::future_status::ready){mImportFuture.get();}
+            auto status = mPacketSubscriptionFuture.wait_for(timeOut);
+            if (status == std::future_status::ready)
+            {
+                mPacketSubscriptionFuture.get();
+            }
         }
         catch (const std::exception &e)
         {
@@ -593,6 +464,19 @@ if (np > 1000){
         return isOkay;
     }
 
+    void stdCatchSignals()
+    {
+        std::signal(SIGINT,  NetworkDetector::stdSignalHandler);
+        std::signal(SIGTERM, NetworkDetector::stdSignalHandler);
+    }
+
+    static void stdSignalHandler(const int signal)
+    {
+        mSignalStatus = signal;
+        mInterrupted = true;
+    }
+
+    /*
     /// Handles sigterm and sigint
     static void signalHandler(const int )
     {   
@@ -608,7 +492,7 @@ if (np > 1000){
         sigaction(SIGINT,  &action, NULL);
         sigaction(SIGTERM, &action, NULL);
     }    
-
+    */
 //private:
     UFilterPicker::Options::ProgramOptions mOptions;
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
@@ -623,11 +507,10 @@ if (np > 1000){
     std::map
     <
         std::string,
-        std::unique_ptr<::Detector>
-    > mDetectors;
+        std::unique_ptr<::DetectorPicker>
+    > mDetectorPickers;
     oneapi::tbb::concurrent_bounded_queue<UDataPacketServiceAPI::V1::Packet> mImportQueue;
-    std::vector<UDataPacketServiceAPI::V1::StreamIdentifier> mStreamsToProcess;
-    std::future<void> mImportFuture;
+    std::future<void> mPacketSubscriptionFuture;
     std::future<void> mDataProcessingFuture;
     std::atomic<bool> mKeepRunning{true};
     mutable std::mutex mStopMutex;
