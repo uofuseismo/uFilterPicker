@@ -285,7 +285,7 @@ public:
 
     void stop()                    
     {
-        SPDLOG_LOGGER_INFO(mLogger, "stop it");
+        SPDLOG_LOGGER_DEBUG(mLogger, "Stopping acquisition");
         mShutdownRequested = true;
         mShutdownCondition.notify_all();
         mKeepRunning.store(false);

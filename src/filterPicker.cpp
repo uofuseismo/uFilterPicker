@@ -1,17 +1,21 @@
-#include <signal.h>
+//#include <signal.h>
+#include <cstdlib>
 #include <memory>
 #include <cstddef>
 #include <csignal>
 #include <iostream>
 #include <cstdint>
+#include <optional>
 #include <algorithm>
 #include <utility>
 #include <limits>
 #include <functional>
 #include <stdexcept>
+#include <exception>
 #include <sstream>
 #include <string>
 #include <chrono>
+#include <atomic>
 #include <future>
 #include <thread>
 #include <mutex>
@@ -84,7 +88,7 @@ public:
              std::shared_ptr<spdlog::logger> logger) :
         mIdentifier(identifier), 
         mIdentifierString(UFilterPicker::Utilities::toString(identifier)),
-        mLogger(logger)
+        mLogger(std::move(logger))
     {
         mDetector = UFilterPicker::Detector::create100HzBroadband();
         mTrigger = UFilterPicker::ThresholdTrigger::create100HzBroadband();
@@ -221,7 +225,7 @@ public:
     NetworkDetector(const UFilterPicker::Options::ProgramOptions &options,
                     std::shared_ptr<spdlog::logger> logger) :
         mOptions(options),
-        mLogger(logger)
+        mLogger(std::move(logger))
     {
         if (mLogger == nullptr)
         {
@@ -391,6 +395,15 @@ if (np > 1000){
         {
             mPacketSubscriber->stop();
         }
+        std::this_thread::sleep_for(std::chrono::milliseconds {15});
+        if (mDataProcessingFuture.valid())
+        {
+            mDataProcessingFuture.get();
+        }
+        if (mPacketSubscriptionFuture.valid())
+        {
+            mPacketSubscriptionFuture.get();
+        }
     }
 
     /// Keeps the main thread occupied
@@ -457,6 +470,22 @@ if (np > 1000){
         {
             SPDLOG_LOGGER_CRITICAL(mLogger,
                                    "Fatal error in acquisition: {}",
+                                   std::string {e.what()});
+            isOkay = false;
+        }
+
+        try
+        {   
+            auto status = mDataProcessingFuture.wait_for(timeOut);
+            if (status == std::future_status::ready)
+            {
+                mDataProcessingFuture.get();
+            }
+        }
+        catch (const std::exception &e) 
+        {
+            SPDLOG_LOGGER_CRITICAL(mLogger,
+                                   "Fatal error in processing: {}",
                                    std::string {e.what()});
             isOkay = false;
         }
@@ -529,7 +558,10 @@ int main(int argc, char *argv[])
     std::string iniFile;
     try
     {
-        auto [iniFileName, isHelp] = UFilterPicker::Options::parseCommandLineOptions(argc, argv);
+        //NOLINTBEGIN(misc-include-cleaner)
+        auto [iniFileName, isHelp] 
+            = UFilterPicker::Options::parseCommandLineOptions(argc, argv);
+        //NOLINTEND(misc-include-cleaner)
         if (isHelp){return EXIT_SUCCESS;}
         if (iniFileName.empty())
         {
@@ -551,6 +583,7 @@ int main(int argc, char *argv[])
     UFilterPicker::Options::ProgramOptions programOptions;
     try
     {
+        //NOLINTNEXTLINE(misc-include-cleaner)
         programOptions = UFilterPicker::Options::parseIniFile(iniFile);
     }
     catch (const std::exception &e) 
