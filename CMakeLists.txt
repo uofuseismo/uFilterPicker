@@ -212,7 +212,6 @@ target_sources(uFilterPicker
                          src/modules/filterPickerOptions.cppm
                          src/modules/metrics.cppm
                          src/modules/otelSpdlogSink.cppm)
-#                         ${LIBRARY_MODULE_FILES})
 protobuf_generate(TARGET uFilterPicker
                   LANGUAGE cpp
                   OUT_VAR PROTO_GENERATED_CXX_FILES
