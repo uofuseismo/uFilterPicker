@@ -31,6 +31,7 @@ module;
 #include <opentelemetry/metrics/observer_result.h>
 #include <uDataPacketServiceAPI/v1/packet.pb.h>
 #include <uDataPacketServiceAPI/v1/stream_identifier.pb.h>
+#include "uFilterPicker/metrics.hpp"
 //#include <opentelemetry/sdk/metrics/view/instrument_selector_factory.h>
 //#include <opentelemetry/sdk/metrics/view/meter_selector_factory.h>
 //#include <opentelemetry/sdk/metrics/view/view_factory.h>
@@ -168,6 +169,7 @@ export void cleanup()
     metricsInitialized = false;
 }
 
+/*
 export
 [[nodiscard]]
 std::string toKeyName(
@@ -264,6 +266,7 @@ export void initializeSingleton()
 {
     MetricsSingleton::getInstance();
 }
+*/
 
 export
 void observeDetectorResets(

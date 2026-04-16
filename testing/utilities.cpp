@@ -168,3 +168,88 @@ TEMPLATE_TEST_CASE("UFilterPicker::Utilities", "[unpackData]",
     
 }
 
+TEST_CASE("UFilterPicker::Utilities", "[gap]")
+{
+    using namespace UFilterPicker::Utilities;
+    SECTION("Exact - no gaps")
+    {
+        constexpr double samplingRate{100}; // Pretty standard
+        constexpr std::chrono::microseconds t0{37000000}; // 37s
+        constexpr std::chrono::microseconds t1{37010000}; // 37.01s
+        REQUIRE( getGapSizeInSamples(t1, samplingRate, t0) == 0 );
+    }
+    SECTION("Exact - no gaps - rounding check")
+    {
+        constexpr double samplingRate{100}; // Pretty standard
+        constexpr std::chrono::microseconds t0{36990000}; // 36.99s
+        constexpr std::chrono::microseconds t1{37000000}; // 37.00s
+        REQUIRE( getGapSizeInSamples(t1, samplingRate, t0) == 0 );
+    }   
+    SECTION("Slight undershot - no gaps")
+    {   
+        constexpr double samplingRate{100};
+        constexpr std::chrono::microseconds t0{37000000}; // 37s
+        constexpr std::chrono::microseconds t1{37009000}; // 37.009s
+        REQUIRE( getGapSizeInSamples(t1, samplingRate, t0) == 0 );
+    }   
+    SECTION("Slight overrshot - no gaps")
+    {
+        constexpr double samplingRate{100};
+        constexpr std::chrono::microseconds t0{37000000}; // 37s
+        constexpr std::chrono::microseconds t1{37011000}; // 37.011s
+        REQUIRE( getGapSizeInSamples(t1, samplingRate, t0) == 0 );
+    }
+    SECTION("Exact gap")
+    {
+        // Real samples are:
+        //      37     37.01 37.02 37.03 37.04 37.05 37.06 37.08 37.09 37.1 37.11
+        // (included)  (                   9 skipped                      ) (next)
+        constexpr double samplingRate{100};
+        constexpr std::chrono::microseconds t0{37000000}; // 37s
+        constexpr std::chrono::microseconds t1{37100000}; // 37.1s
+        REQUIRE( getGapSizeInSamples(t1, samplingRate, t0) == 9 ); 
+        REQUIRE( getGapSizeInSamples(t0, samplingRate, t1) ==-9 );
+    } 
+    SECTION("Exact gap - rounding check")
+    {   
+        constexpr double samplingRate{100};
+        constexpr std::chrono::microseconds t0{36900000}; // 36.9
+        constexpr std::chrono::microseconds t1{37000000}; // 37.0s
+        REQUIRE( getGapSizeInSamples(t1, samplingRate, t0) == 9 );  
+        REQUIRE( getGapSizeInSamples(t0, samplingRate, t1) ==-9 );
+    }   
+    SECTION("Slight undershot - gap")
+    {
+        // Real samples are:
+        //      37     37.01 37.02 37.03 37.04 37.05 37.06 37.08 37.09 37.1 37.099
+        // (included)  (                   9 skipped                      ) (next)
+        constexpr double samplingRate{100};
+        constexpr std::chrono::microseconds t0{37000000}; // 37s
+        constexpr std::chrono::microseconds t1{37099000}; // 37.099s
+        REQUIRE( getGapSizeInSamples(t1, samplingRate, t0) == 9 );  
+        REQUIRE( getGapSizeInSamples(t0, samplingRate, t1) ==-9 );
+    }
+    SECTION("Slight overshot - gap")
+    {   
+        // Real samples are:
+        //      37     37.01 37.02 37.03 37.04 37.05 37.06 37.08 37.09 37.1 37.104
+        // (included)  (                   9 skipped                      ) (next)
+        constexpr double samplingRate{100};
+        constexpr std::chrono::microseconds t0{37000000}; // 37s
+        constexpr std::chrono::microseconds t1{37104000}; // 37.104s
+        REQUIRE( getGapSizeInSamples(t1, samplingRate, t0) == 9 );
+        REQUIRE( getGapSizeInSamples(t0, samplingRate, t1) ==-9 );
+    }
+    SECTION("Slight overshot with exact perturbation - gap")
+    {
+        // Real samples are:
+        //      37     37.01 37.02 37.03 37.04 37.05 37.06 37.08 37.09 37.1 37.105 (rounds to 37.11)
+        // (included)  (                   9 skipped                      ) (next)
+        constexpr double samplingRate{100}; 
+        constexpr std::chrono::microseconds t0{37000000}; // 37s
+        constexpr std::chrono::microseconds t1{37105000}; // 37.105s
+        REQUIRE( getGapSizeInSamples(t1, samplingRate, t0) == 9 );  
+        REQUIRE( getGapSizeInSamples(t0, samplingRate, t1) ==-9 );
+    }   
+ 
+}

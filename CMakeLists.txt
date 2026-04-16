@@ -80,13 +80,15 @@ set(LIBRARY_SRC
     src/envelope.cpp
     src/characteristicFunction.cpp
     src/narrowBandFilter.cpp
+    src/picker.cpp
     src/pipeline.cpp
     src/thresholdTrigger.cpp
     src/detector.cpp
     src/grpcClientOptions.cpp
     src/subscriberOptions.cpp
     src/version.cpp
-    src/utilities.cpp)
+    src/utilities.cpp 
+    src/metrics.cpp)
 set(IMPORT_PROTO_SRC
     uDataPacketServiceAPI/v1/data_type.proto
     uDataPacketServiceAPI/v1/stream_identifier.proto
@@ -99,7 +101,10 @@ set(LIBRARY_HEADER_FILES
     include/uFilterPicker/characteristicFunction.hpp
     include/uFilterPicker/detector.hpp
     include/uFilterPicker/envelope.hpp
+    include/uFilterPicker/metrics.hpp
     include/uFilterPicker/narrowBandFilter.hpp
+    include/uFilterPicker/picker.hpp
+    include/uFilterPicker/pipeline.hpp
     include/uFilterPicker/thresholdTrigger.hpp
     include/uFilterPicker/grpcClientOptions.hpp
     include/uFilterPicker/subscriberOptions.hpp
@@ -123,10 +128,6 @@ target_link_libraries(libuFilterPicker
                               spdlog::spdlog_header_only
                               gRPC::grpc gRPC::grpc++
                               uSignal::libuSignal)
-#                              opentelemetry-cpp::opentelemetry-cpp
-#                              opentelemetry-cpp::metrics
-#                              opentelemetry-cpp::common
-#                              opentelemetry-cpp::api)
 target_sources(libuFilterPicker
                PUBLIC FILE_SET HEADERS
                       BASE_DIRS
@@ -134,11 +135,6 @@ target_sources(libuFilterPicker
                          ${CMAKE_CURRENT_BINARY_DIR}/include
                       FILES
                          ${LIBRARY_HEADER_FILES})
-#               PUBLIC FILE_SET CXX_MODULES
-#                      BASE_DIRS
-#                         src/modules
-#                      FILES
-#                         ${LIBRARY_MODULE_FILES})
 
 protobuf_generate(TARGET libuFilterPicker 
                   LANGUAGE cpp 

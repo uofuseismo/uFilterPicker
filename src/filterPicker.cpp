@@ -44,10 +44,12 @@
 #include <uDataPacketServiceAPI/v1/stream_identifier.pb.h>
 #include <uDataPacketServiceAPI/v1/data_type.pb.h>
 //#include <readerwriterqueue.h>
+#include "uFilterPicker/picker.hpp"
 #include "uFilterPicker/utilities.hpp"
 #include "uFilterPicker/detector.hpp"
 #include "uFilterPicker/subscriber.hpp"
 #include "uFilterPicker/subscriberOptions.hpp"
+#include "uFilterPicker/metrics.hpp"
 /*
 #include "uFilterPicker/pipeline.hpp"
 #include "uFilterPicker/characteristicFunction.hpp"
@@ -250,11 +252,19 @@ public:
             // TODO
             auto detector = UFilterPicker::Detector::create100HzBroadband(); 
             auto thresholdPicker = UFilterPicker::ThresholdTrigger::create100HzBroadband();
-            auto detectorPicker = std::make_unique<::DetectorPicker> (std::move(detector), std::move(thresholdPicker));
+double nominalSamplingRate{100};
+            auto picker
+                = std::make_unique<UFilterPicker::Picker>
+                  (streamIdentifier,
+                   std::move(detector),
+                   std::move(thresholdPicker),
+                   mLogger,
+                   nominalSamplingRate);
+      
             auto added
-                = mDetectorPickers.insert(
+                = mPickers.insert(
                       std::pair {streamName,
-                                 std::move(detectorPicker)} ).second;
+                                 std::move(picker)} ).second;
             if (!added)
             {
                 throw std::runtime_error("Failed to add detector "
@@ -297,8 +307,8 @@ if (np > 1000){
                 try
                 {
                     auto streamName = UFilterPicker::Utilities::toString(packet);
-                    auto idx = mDetectorPickers.find(streamName);
-                    if (idx == mDetectorPickers.end())
+                    auto idx = mPickers.find(streamName);
+                    if (idx == mPickers.end())
                     {
                         SPDLOG_LOGGER_WARN(mLogger,
                                       "Received packet from unwanted stream {}",
@@ -312,6 +322,8 @@ if (np > 1000){
                             streamName);
                         continue;
                     }
+                    idx->second->apply(packet); 
+/*
                     auto samplingRate = packet.sampling_rate();
                     auto packetStartTime
                         = UFilterPicker::Utilities::getStartTime
@@ -331,7 +343,6 @@ if (np > 1000){
                             characteristicFunction,
                             packetStartTime,
                             samplingRate);
-/*
                     auto characteristicFunctionPacket
                         = idx->second->apply(newPacket); 
                     if (characteristicFunctionPacket)
@@ -518,8 +529,8 @@ if (np > 1000){
     std::map
     <
         std::string,
-        std::unique_ptr<::DetectorPicker>
-    > mDetectorPickers;
+        std::unique_ptr<UFilterPicker::Picker>
+    > mPickers;
     oneapi::tbb::concurrent_bounded_queue<UDataPacketServiceAPI::V1::Packet> mImportQueue;
     std::future<void> mPacketSubscriptionFuture;
     std::future<void> mDataProcessingFuture;

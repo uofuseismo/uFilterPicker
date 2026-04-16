@@ -1,12 +1,20 @@
+#include <iostream>
 #include <cstddef>
 #include <cstdint>
 #include <cctype>
+#include <cmath>
 #include <chrono>
+#include <utility>
+#include <array>
 #include <cmath>
 #include <stdexcept>
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <limits>
+#ifndef NDEBUG
+#include <cassert>
+#endif
 #include <google/protobuf/util/time_util.h>
 #include "uFilterPicker/utilities.hpp"
 #include "uDataPacketServiceAPI/v1/packet.pb.h"
@@ -127,6 +135,24 @@ UFilterPicker::Utilities::toString(
         throw std::invalid_argument("Packet identifier not set");
     }
     return UFilterPicker::Utilities::toString(packet.stream_identifier());
+}
+
+template<>
+std::chrono::microseconds UFilterPicker::Utilities::getNow()
+{
+    auto now 
+       = std::chrono::duration_cast<std::chrono::microseconds>
+         ((std::chrono::high_resolution_clock::now()).time_since_epoch());
+    return now;
+}
+
+template<>
+std::chrono::nanoseconds UFilterPicker::Utilities::getNow()
+{
+    auto now  
+       = std::chrono::duration_cast<std::chrono::nanoseconds>
+         ((std::chrono::high_resolution_clock::now()).time_since_epoch());
+    return now;
 }
 
 template<>
@@ -257,4 +283,97 @@ bool UFilterPicker::Utilities::consistentSamplingRate(
     return std::abs(nominalSamplingRate - packetSamplingRate) < 1.e-4;
 }
 
+int UFilterPicker::Utilities::getGapSizeInSamples(
+    const std::chrono::microseconds &packetStartTimeIn,
+    const double packetSamplingRateHz,
+    const std::chrono::microseconds &latestSampleTimeIn )
+{
+    if (packetSamplingRateHz <= 0)
+    {
+        throw std::invalid_argument("Sampling rate not positive");
+    }
+    // Try to mitigate big numbers problems that come with epochal times
+    auto stripOffset = std::min(std::chrono::duration_cast<std::chrono::seconds> (packetStartTimeIn),
+                                std::chrono::duration_cast<std::chrono::seconds> (latestSampleTimeIn));
+    const auto packetStartTime = packetStartTimeIn
+                               - std::chrono::microseconds {stripOffset};
+    const auto latestSampleTime = latestSampleTimeIn
+                                - std::chrono::microseconds {stripOffset};
+    const auto samplingPeriodMuS
+        = static_cast<int64_t> (std::round(1000000./packetSamplingRateHz));
+    const auto halfSamplingPeriodMuS
+        = static_cast<int64_t> (std::round(500000./packetSamplingRateHz));
+    int sign{1};
+    // Most often this is the case within half a sample of expected start time
+    const auto expectedStartTimeMuS
+       = latestSampleTime.count() + samplingPeriodMuS;
+    if (std::abs(expectedStartTimeMuS - packetStartTime.count()) 
+        < halfSamplingPeriodMuS)
+    {
+        return 0;
+    } 
+    // Okay now have to think a bit
+    auto t0 = latestSampleTime.count();
+    auto t1 = packetStartTime.count();
+    if (packetStartTime > latestSampleTime)
+    {
+        sign =+1;
+    }
+    else if (packetStartTime < latestSampleTime)
+    {
+        t0 = packetStartTime.count();
+        t1 = latestSampleTime.count();
+        sign =-1;
+    }
+    else 
+    {
+        return 0;
+    }
+    const int64_t deltaMuS = t1 - t0; 
+#ifndef NDEBUG
+    assert(deltaMuS >= 0);
+#endif
+    // Gap is the number of samples skipped 
+    auto gapSamples
+        = static_cast<int>
+          (std::round(static_cast<double> (deltaMuS)
+                     /static_cast<double> (samplingPeriodMuS))) - 1;
+    gapSamples = std::max(0, gapSamples);
+    // Goal is to get close and deal with numerical precision as it comes
+    std::array<std::pair<int64_t, int>, 3> t1Estimates
+    {
+        std::pair {std::abs(t1 - (t0 + (gapSamples - 1)*samplingPeriodMuS)),
+                   gapSamples - 1},
+        std::pair {std::abs(t1 - (t0 + (gapSamples + 0)*samplingPeriodMuS)),
+                   gapSamples + 0},
+        std::pair {std::abs(t1 - (t0 + (gapSamples + 1)*samplingPeriodMuS)),
+                   gapSamples + 1},
+    };
+    std::sort(t1Estimates.begin(), t1Estimates.end(), 
+              [](const auto &lhs, const auto &rhs)
+              {
+                 return lhs.first < rhs.first;
+              });
+    if (t1Estimates.at(0).first <= halfSamplingPeriodMuS)
+    {
+        return sign*std::max(0, t1Estimates.at(0).second - 1);
+    }
+    // Do it the hard way
+    std::cerr << " Hard way " << std::endl;
+    auto t1Estimate = t0 + (gapSamples + 1)*samplingPeriodMuS;
+    bool success{false};
+    for (int k = 0; k < std::numeric_limits<int>::max(); ++k)
+    {
+        t1Estimate = t0 + k*samplingPeriodMuS;
+        //std::cout << t1 << " " << t1Estimate << std::endl;
+        if (std::abs(t1 - t1Estimate) <= halfSamplingPeriodMuS)
+        {
+            gapSamples = k;
+            success = true;
+            break;
+        }
+    }
+    if (!success){throw std::runtime_error("Crude gap estimation failed");}
+    return sign*gapSamples; 
+}
 
