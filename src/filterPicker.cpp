@@ -444,7 +444,7 @@ if (np > 1000){
             stop();
             std::this_thread::sleep_for(std::chrono::milliseconds {15});
         }
-    } 
+    }
 
     /// @brief Prints an update
     void printSummary()
@@ -505,23 +505,6 @@ if (np > 1000){
         mInterrupted = true;
     }
 
-    /*
-    /// Handles sigterm and sigint
-    static void signalHandler(const int )
-    {   
-        mInterrupted = true; 
-    }
-
-    static void catchSignals()
-    {
-        struct sigaction action;
-        action.sa_handler = signalHandler;
-        action.sa_flags = 0; 
-        sigemptyset(&action.sa_mask);
-        sigaction(SIGINT,  &action, NULL);
-        sigaction(SIGTERM, &action, NULL);
-    }    
-    */
 //private:
     UFilterPicker::Options::ProgramOptions mOptions;
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
@@ -532,7 +515,6 @@ if (np > 1000){
         std::bind(&::NetworkDetector::getPacket, this,
                   std::placeholders::_1)
     };
-//    std::unique_ptr<UDataPacketImport::GRPC::Client> mImportClient{nullptr};
     std::map
     <
         std::string,
@@ -554,6 +536,10 @@ if (np > 1000){
 
 int main(int argc, char *argv[])
 {
+    // Initialize the metrics singleton regardless of if we export
+    //NOLINTNEXTLINE(misc-include-cleaner)
+    UFilterPicker::Metrics::initializeSingleton();
+
     // Get the ini file from the command line
     std::string iniFile;
     try

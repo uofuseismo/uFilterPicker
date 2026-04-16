@@ -2,6 +2,7 @@ module;
 #include <utility>
 #include <memory>
 #include <string>
+#include <mutex>
 #include <opentelemetry/nostd/shared_ptr.h>
 //#include <opentelemetry/metrics/meter.h>
 #include <opentelemetry/metrics/meter_provider.h>
@@ -19,6 +20,17 @@ module;
 #include <opentelemetry/sdk/metrics/meter_context_factory.h>
 #include <opentelemetry/sdk/metrics/meter_provider_factory.h>
 #include <opentelemetry/sdk/metrics/provider.h>
+
+#include <cctype>
+#include <cstdint>
+#include <map>
+#include <exception>
+#include <stdexcept>
+#include <algorithm>
+#include <opentelemetry/nostd/variant.h>
+#include <opentelemetry/metrics/observer_result.h>
+#include <uDataPacketServiceAPI/v1/packet.pb.h>
+#include <uDataPacketServiceAPI/v1/stream_identifier.pb.h>
 //#include <opentelemetry/sdk/metrics/view/instrument_selector_factory.h>
 //#include <opentelemetry/sdk/metrics/view/meter_selector_factory.h>
 //#include <opentelemetry/sdk/metrics/view/view_factory.h>
@@ -155,6 +167,205 @@ export void cleanup()
     }
     metricsInitialized = false;
 }
+
+export
+[[nodiscard]]
+std::string toKeyName(
+     const UDataPacketServiceAPI::V1::StreamIdentifier &identifier)
+{
+     const auto &network = identifier.network();
+     if (network.empty()){throw std::runtime_error("Network is empty");}
+     const auto &station = identifier.station();
+     if (station.empty()){throw std::runtime_error("Station is empty");}
+     const auto &channel = identifier.channel();
+     if (channel.empty()){throw std::runtime_error("Channel is empty");}
+     const auto &locationCode = identifier.location_code();
+
+     auto result = network + "_"
+                 + station + "_"
+                 + channel;
+     if (!locationCode.empty()){result = result + "_" + locationCode;}
+     std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+     return result;
+}
+
+
+export 
+[[nodiscard]]
+std::string toKeyName(const UDataPacketServiceAPI::V1::Packet &packet)
+{
+     return toKeyName(packet.stream_identifier());
+}
+
+export 
+class MetricsSingleton
+{
+public:
+    [[maybe_unused]] static MetricsSingleton &getInstance()
+    {   
+        std::mutex mutex;
+        const std::scoped_lock lock{mutex};
+        static MetricsSingleton instance;
+        return instance;
+    }   
+
+    void incrementDetectorResets(const std::string &key)
+    {
+        const std::lock_guard<std::mutex> lock(mMutex);
+        auto idx = mResetsCounterMap.find(key);
+        if (idx == mResetsCounterMap.end())
+        {
+            mResetsCounterMap.insert( std::pair {key, 1} );
+        }
+        else
+        {
+            idx->second = idx->second + 1;
+        }
+    }
+
+    [[nodiscard]]
+    std::map<std::string, int64_t> getDetectorResetsCounters() const noexcept
+    {
+        const std::lock_guard<std::mutex> lock(mMutex);
+        return mResetsCounterMap;
+    }
+
+    void incrementPicks(const std::string &key)
+    {
+        const std::lock_guard<std::mutex> lock(mMutex);
+        auto idx = mPicksCounterMap.find(key);
+        if (idx == mPicksCounterMap.end())
+        {
+            mPicksCounterMap.insert( std::pair {key, 1} );
+        }
+        else
+        {
+            idx->second = idx->second + 1;
+        }
+    }
+
+    [[nodiscard]] 
+    std::map<std::string, int64_t> getPicksCounters() const noexcept
+    {
+        const std::lock_guard<std::mutex> lock(mMutex);
+        return mPicksCounterMap;
+    }
+
+private:
+    MetricsSingleton() = default;
+    ~MetricsSingleton() = default;
+    std::map<std::string, int64_t> mResetsCounterMap;
+    std::map<std::string, int64_t> mPicksCounterMap;
+    mutable std::mutex mMutex;
+
+};
+
+export void initializeSingleton()
+{
+    MetricsSingleton::getInstance();
+}
+
+export
+void observeDetectorResets(
+    opentelemetry::metrics::ObserverResult observerResult,
+    void *)
+{
+    if (opentelemetry::nostd::holds_alternative
+        <
+            opentelemetry::nostd::shared_ptr
+            <
+                opentelemetry::metrics::ObserverResultT<int64_t>
+            >
+        > (observerResult))
+    {
+        auto observer = opentelemetry::nostd::get
+        <
+            opentelemetry::nostd::shared_ptr
+            <
+               opentelemetry::metrics::ObserverResultT<int64_t>
+            >
+        > (observerResult);
+        try
+        {
+            auto &instance = MetricsSingleton::getInstance();
+            auto map = instance.getDetectorResetsCounters();
+            for (const auto &item : map)
+            {
+                try
+                {
+                    const auto key = item.first;
+                    const auto value = item.second;
+                    const std::map<std::string, std::string>
+                        attribute{ {"stream", item.first} };
+                    observer->Observe(value, attribute);
+                }
+                catch (const std::exception &e) 
+                {
+                    throw std::runtime_error("Problem observing result for "
+                                           + item.first + ": " 
+                                           + std::string {e.what()});
+                }
+            }
+        }
+        catch (const std::exception &e)
+        {
+            throw std::runtime_error("Problem observing detector resets: "
+                                   + std::string {e.what()});
+        }
+    }
+}
+
+export
+void observePicks(
+    opentelemetry::metrics::ObserverResult observerResult,
+    void *)
+{
+    if (opentelemetry::nostd::holds_alternative
+        <
+            opentelemetry::nostd::shared_ptr
+            <
+                opentelemetry::metrics::ObserverResultT<int64_t>
+            >
+        > (observerResult))
+    {
+        auto observer = opentelemetry::nostd::get
+        <
+            opentelemetry::nostd::shared_ptr
+            <
+               opentelemetry::metrics::ObserverResultT<int64_t>
+            >
+        > (observerResult);
+        try
+        {
+            auto &instance = MetricsSingleton::getInstance();
+            auto map = instance.getPicksCounters();
+            for (const auto &item : map)
+            {
+                try
+                {
+                    const auto key = item.first;
+                    const auto value = item.second;
+                    const std::map<std::string, std::string>
+                        attribute{ {"stream", item.first} };
+                    observer->Observe(value, attribute);
+                }
+                catch (const std::exception &e) 
+                {
+                    throw std::runtime_error("Problem observing result for "
+                                           + item.first + ": " 
+                                           + std::string {e.what()});
+                }
+            }
+        }
+        catch (const std::exception &e)
+        {
+            throw std::runtime_error("Problem observing picks: "
+                                   + std::string {e.what()});
+        }
+    }
+}
+
+
 
 }
 
