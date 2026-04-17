@@ -299,7 +299,8 @@ int np{0};
         while (mKeepRunning)
         {
             UDataPacketServiceAPI::V1::Packet packet;
-            if (mImportQueue.try_pop(packet))
+            auto gotPacket = mImportQueue.try_pop(packet);
+            if (gotPacket)
             {
 np++;
 if (np > 1000){
@@ -325,32 +326,6 @@ if (np > 1000){
                         continue;
                     }
                     idx->second->apply(packet); 
-/*
-                    auto samplingRate = packet.sampling_rate();
-                    auto packetStartTime
-                        = UFilterPicker::Utilities::getStartTime
-                          <std::chrono::microseconds> (packet);
-                    auto timeSeries
-                        = UFilterPicker::Utilities::toDoubleVector(packet);
-                    if (timeSeries.empty())
-                    {
-                        SPDLOG_LOGGER_WARN(mLogger,
-                                           "Empty packet detected for {}",
-                                           streamName);
-                        continue;
-                    }
-                    auto characteristicFunction
-                        = idx->second->detector->apply(timeSeries);
-                    auto onOffSignal = idx->second->trigger->apply(
-                            characteristicFunction,
-                            packetStartTime,
-                            samplingRate);
-                    auto characteristicFunctionPacket
-                        = idx->second->apply(newPacket); 
-                    if (characteristicFunctionPacket)
-                    {
-                    } 
-*/
                  }
                  catch (const std::exception &e)
                  {

@@ -152,6 +152,7 @@ public:
         }
         const auto endTime
             = Utilities::getEndTime<std::chrono::microseconds> (packet);
+std::cout << std::setprecision(16) << mIdentifierString << " " << startTime.count()*1.e-6 << " " << endTime.count()*1.e-6 << std::endl;
         if (endTime > now + mMaxFutureTime)
         {
             throw std::invalid_argument("Will not process future packets");
@@ -160,9 +161,7 @@ public:
         // First packet is kinda easy
         if (mFirstPacket)
         {
-            mLastSamplingRate = samplingRate;
             mFirstSampleTime = startTime;
-            mLastSampleTime = endTime;
             mFirstPacket = false;
         }
         else
@@ -192,7 +191,11 @@ public:
             // Gap - reset
             if (gapSize > mGapToleranceInSamples)
             {
-                SPDLOG_LOGGER_WARN(mLogger, "Gap detected - resetting");
+                SPDLOG_LOGGER_WARN(mLogger,
+                    "Gap of {} samples detected for {} (packet start time {}, last sample time {}); resetting",
+                    gapSize,
+                    mIdentifierString,
+                    startTime.count(), mLastSampleTime.count());
                 mMetrics.incrementDetectorResetsCounter(mMetricsKeyName);
                 mDetector->resetInitialConditions();
                 mTrigger->resetInitialConditions();
@@ -203,16 +206,18 @@ public:
                 // TODO should attempt to strip the packet data until we
                 // reach the next valid sample start time
                 SPDLOG_LOGGER_WARN(mLogger,
-                                   "Negative timing detected - resetting");
+                                   "Negative timing detected for {}- resetting",
+                                   mIdentifierString);
                 mMetrics.incrementDetectorResetsCounter(mMetricsKeyName);
                 mDetector->resetInitialConditions();
                 mTrigger->resetInitialConditions();
                 mFirstSampleTime = startTime;
             }
-            // Standard - just roll over timings
-            mLastSamplingRate = samplingRate;
-            mLastSampleTime = endTime;
         }
+        // Update timings
+        mLastSamplingRate = samplingRate;
+        mLastSampleTime = endTime;
+
         // Apply the detector
         auto characteristicFunction = mDetector->apply(samples);
 

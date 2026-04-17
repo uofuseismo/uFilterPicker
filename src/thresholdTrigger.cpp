@@ -99,7 +99,7 @@ bool ThresholdTrigger::isInitialized() const noexcept
 /// Reset initial conditions on gap
 void ThresholdTrigger::resetInitialConditions()
 {
-    if (isInitialized())
+    if (!isInitialized())
     {
         throw std::runtime_error("Threshold detector not initialized");
     }
@@ -112,7 +112,7 @@ void ThresholdTrigger::resetInitialConditions()
 /// Apply the filter
 std::vector<uint8_t> ThresholdTrigger::apply(const std::vector<double> &x)
 {
-    if (isInitialized())
+    if (!isInitialized())
     {   
         throw std::runtime_error("Threshold detector not initialized");
     }   
@@ -122,7 +122,7 @@ std::vector<uint8_t> ThresholdTrigger::apply(const std::vector<double> &x)
 
 std::vector<uint8_t> ThresholdTrigger::apply(std::vector<double> &&x)
 {
-    if (isInitialized())
+    if (!isInitialized())
     {   
         throw std::runtime_error("Threshold detector not initialized");
     }   
@@ -159,7 +159,7 @@ ThresholdTrigger::apply(std::vector<double> &&characteristicFunction,
     const double packetSamplingRate)
 {
     if (!isInitialized())
-    {   
+    {
         throw std::invalid_argument("Threshold trigger not initialized");
     }
     if (packetSamplingRate <= 0)

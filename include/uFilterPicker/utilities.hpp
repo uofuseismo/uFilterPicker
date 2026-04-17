@@ -53,6 +53,22 @@ int getGapSizeInSamples(const std::chrono::microseconds &packetStartTime,
                         const double packetSamplingRateHZ,
                         const std::chrono::microseconds &latestSampleTime);
 
+/// @brief Utility routine for trimming data so that it starts after a certain
+///        amount of time.
+/// @param[in] desiredStartTime      The desired start time.
+/// @param[in] inputData             The data to trim.
+/// @param[in] startTime             The start time of the input data.
+/// @param[in] packetSamplingRateHz  The packet sampling rate in Hz.
+/// @result result.first is the trimmed data adn result.second is the 
+///         corresponding start time of the data.  The start time will
+///         be at least the desiredStartTime.
+[[nodiscard]]
+std::pair<std::vector<double>, std::chrono::microseconds> 
+trimData(const std::chrono::microseconds &desiredStartTime,
+         const std::vector<double> &inputData,
+         const std::chrono::microseconds &startTime,
+         const double packetSamplingRateHz);
+
 }
 
 #endif

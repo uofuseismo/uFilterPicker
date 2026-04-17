@@ -55,7 +55,7 @@ FetchContent_Declare(uSignal
                      EXCLUDE_FROM_ALL
                      SYSTEM
                      GIT_REPOSITORY https://github.com/uofuseismo/uSignal.git
-                     GIT_TAG f63e598)
+                     GIT_TAG 444c76b)
 FetchContent_MakeAvailable(uSignal)
 
 if (${USE_CLANG_TIDY} AND PROJECT_IS_TOP_LEVEL)

@@ -161,7 +161,8 @@ UFilterPicker::Utilities::getStartTime(
     const UDataPacketServiceAPI::V1::Packet &packet)
 {
     const auto startTime
-        = google::protobuf::util::TimeUtil::TimestampToMicroseconds(packet.start_time());
+        = google::protobuf::util::TimeUtil::TimestampToMicroseconds(
+             packet.start_time());
     return std::chrono::microseconds {startTime};
 }
 
@@ -171,7 +172,8 @@ UFilterPicker::Utilities::getStartTime<std::chrono::nanoseconds>(
     const UDataPacketServiceAPI::V1::Packet &packet)
 {
     const auto startTime
-        = google::protobuf::util::TimeUtil::TimestampToNanoseconds(packet.start_time());
+        = google::protobuf::util::TimeUtil::TimestampToNanoseconds(
+             packet.start_time());
     return std::chrono::nanoseconds {startTime};
 }
 
@@ -190,12 +192,10 @@ UFilterPicker::Utilities::getEndTime<std::chrono::microseconds>(
     const auto iEndTimeNanoSeconds
         = static_cast<int64_t> (
             std::round( (nSamples - 1)*samplingPeriodNanoSeconds ) );
-    const auto endTimeMuS
-        = google::protobuf::util::TimeUtil::NanosecondsToTimestamp(
-             iEndTimeNanoSeconds);
     const std::chrono::microseconds endTime
         = getStartTime<std::chrono::microseconds> (packet)
-        + std::chrono::microseconds {iEndTimeNanoSeconds};
+        + std::chrono::duration_cast<std::chrono::microseconds>
+            (std::chrono::nanoseconds {iEndTimeNanoSeconds});
     return endTime;
 }
 
@@ -214,9 +214,6 @@ UFilterPicker::Utilities::getEndTime<std::chrono::nanoseconds>(
     const auto iEndTimeNanoSeconds
         = static_cast<int64_t> (
             std::round( (nSamples - 1)*samplingPeriodNanoSeconds ) );
-    const auto endTimeMuS
-        = google::protobuf::util::TimeUtil::NanosecondsToTimestamp(
-             iEndTimeNanoSeconds);
     const std::chrono::nanoseconds endTime
         = getStartTime<std::chrono::nanoseconds> (packet)
         + std::chrono::nanoseconds {iEndTimeNanoSeconds};
@@ -375,5 +372,85 @@ int UFilterPicker::Utilities::getGapSizeInSamples(
     }
     if (!success){throw std::runtime_error("Crude gap estimation failed");}
     return sign*gapSamples; 
+}
+
+std::pair<std::vector<double>, std::chrono::microseconds> 
+UFilterPicker::Utilities::trimData(
+    const std::chrono::microseconds &desiredStartTime,
+    const std::vector<double> &inputData,
+    const std::chrono::microseconds &startTime,
+    const double packetSamplingRateHz)
+{
+    // This is satisfied by default
+    if (desiredStartTime <= startTime){return std::pair {inputData, startTime};}
+    // No way to fix this
+    if (inputData.empty()){return std::pair {inputData, startTime};}
+    // Figure out the offset
+    const auto samplingPeriodMuS
+        = static_cast<int64_t> (std::round(1000000./packetSamplingRateHz));
+    auto nSamples = static_cast<int> (inputData.size());
+    auto endTime
+        = startTime
+        + std::chrono::microseconds {(nSamples - 1)*samplingPeriodMuS};
+    // Edge case at end (I want the last sample)
+    if (endTime == desiredStartTime)
+    {
+        std::vector<double> outputData{inputData.back()};
+        return std::pair {outputData, desiredStartTime};
+    }
+    // My desired start time exceeds the end time - I get nothing
+    else if (endTime > desiredStartTime)
+    {
+        std::vector<double> outputData;
+        return std::pair {outputData, desiredStartTime};
+    }
+    // Okay, this is normal - I'm some offset into the signal
+    auto deltaMuS = desiredStartTime.count() - startTime.count(); 
+#ifndef NDEBUG
+    assert(deltaMuS >= 0);
+#endif
+    auto offsetSamples = static_cast<int>
+          (std::round(static_cast<double> (deltaMuS)
+                     /static_cast<double> (samplingPeriodMuS)));
+    // Again, we a packet that is out of range
+    if (offsetSamples >= nSamples)
+    {
+        std::vector<double> outputData;
+        return std::pair {outputData, desiredStartTime};
+    }
+    // Goal is to find the next sample that is greater than or equal to the
+    // desired time
+    constexpr int64_t t0{0}; //startTime.count();
+    auto t1 = deltaMuS; //desiredStartTime.count() - startTime.count(); // Shift it
+    std::array<std::pair<int64_t, int>, 3> t1Estimates
+    {
+        std::pair {std::abs(t1 - (t0 + (offsetSamples - 1)*samplingPeriodMuS)),
+                   offsetSamples - 1}, 
+        std::pair {std::abs(t1 - (t0 + (offsetSamples + 0)*samplingPeriodMuS)),
+                   offsetSamples + 0},
+        std::pair {std::abs(t1 - (t0 + (offsetSamples + 1)*samplingPeriodMuS)),
+                   offsetSamples + 1}
+    };
+    std::sort(t1Estimates.begin(), t1Estimates.end(), 
+              [](const auto &lhs, const auto &rhs)
+              {
+                 return lhs.first < rhs.first;
+              });  
+    for (const auto &estimate : t1Estimates)
+    {
+        if (estimate.first >= t1)
+        {
+            auto nSamplesOut = std::min(nSamples, estimate.second);
+            std::vector<double> outputData(nSamplesOut);
+            std::copy(inputData.data(),
+                      inputData.data() + nSamplesOut,
+                      outputData.begin());
+            auto outputTime = startTime
+                + std::chrono::microseconds {(nSamplesOut - 1)*samplingPeriodMuS}; 
+            return {outputData, outputTime};  
+        }
+    }
+    throw std::runtime_error("Algorithmic failure");
+
 }
 

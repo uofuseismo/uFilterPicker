@@ -165,8 +165,56 @@ TEMPLATE_TEST_CASE("UFilterPicker::Utilities", "[unpackData]",
         constexpr double tolerance{std::numeric_limits<double>::epsilon()*100};
         REQUIRE_THAT(dVector[i], Catch::Matchers::WithinRel(di, tolerance));
     }
-    
 }
+
+TEST_CASE("UFilterPicker::Utilities", "[startEndTime]")
+{
+    using namespace UFilterPicker::Utilities;
+
+    const std::string network{"UU"};
+    const std::string station{"HVU"};
+    const std::string channel{"HHZ"};
+    const std::string locationCode{"01"};
+    
+    UDataPacketServiceAPI::V1::StreamIdentifier identifier;
+    identifier.set_network(network);
+    identifier.set_station(station);
+    identifier.set_channel(channel);
+    identifier.set_location_code(locationCode);
+
+    const double samplingRate{100};
+    const std::vector<int> data{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    const int nSamples{static_cast<int> (data.size())};
+    constexpr std::chrono::seconds startTimeS{1774627730};
+    const std::chrono::microseconds startTimeMuS{startTimeS};
+    const std::chrono::nanoseconds startTimeNanoS{startTimeS}; 
+    constexpr std::chrono::microseconds durationMuS{90000};
+    constexpr std::chrono::nanoseconds durationNanoS{90000000};
+    const std::chrono::microseconds endTimeMuSRef
+        = startTimeMuS + durationMuS;
+    const std::chrono::nanoseconds endTimeNanoSRef
+        = startTimeNanoS + durationNanoS;
+    const auto startTime
+        = google::protobuf::util::TimeUtil::SecondsToTimestamp(
+            startTimeS.count());
+    UDataPacketServiceAPI::V1::Packet packet;
+    *packet.mutable_stream_identifier() = identifier;
+    *packet.mutable_start_time() = startTime;
+    packet.set_sampling_rate(samplingRate);
+    packet.set_number_of_samples(nSamples);
+    packet.set_data_type(::toDataType<int>());
+    packet.set_data(::pack(data));
+    
+    REQUIRE(getStartTime<std::chrono::microseconds> (packet) == startTimeMuS);
+    REQUIRE(getStartTime<std::chrono::nanoseconds> (packet) == startTimeNanoS);
+
+    auto endTimeMuS = getEndTime<std::chrono::microseconds> (packet);
+    REQUIRE(endTimeMuS == endTimeMuSRef);
+
+    auto endTimeNanoS = getEndTime<std::chrono::nanoseconds> (packet);
+    REQUIRE(endTimeNanoS == endTimeNanoSRef);
+}   
+
 
 TEST_CASE("UFilterPicker::Utilities", "[gap]")
 {
@@ -251,5 +299,12 @@ TEST_CASE("UFilterPicker::Utilities", "[gap]")
         REQUIRE( getGapSizeInSamples(t1, samplingRate, t0) == 9 );  
         REQUIRE( getGapSizeInSamples(t0, samplingRate, t1) ==-9 );
     }   
- 
+}
+
+TEST_CASE("UFilterPicker::Utilities", "[leftTrim]")
+{
+    SECTION("Too early")
+    {
+
+    }
 }
