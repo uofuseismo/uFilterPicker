@@ -2,7 +2,7 @@ module;
 #include <utility>
 #include <memory>
 #include <string>
-#include <mutex>
+//#include <mutex>
 #include <opentelemetry/nostd/shared_ptr.h>
 //#include <opentelemetry/metrics/meter.h>
 #include <opentelemetry/metrics/meter_provider.h>
@@ -26,11 +26,11 @@ module;
 #include <map>
 #include <exception>
 #include <stdexcept>
-#include <algorithm>
+//#include <algorithm>
 #include <opentelemetry/nostd/variant.h>
 #include <opentelemetry/metrics/observer_result.h>
-#include <uDataPacketServiceAPI/v1/packet.pb.h>
-#include <uDataPacketServiceAPI/v1/stream_identifier.pb.h>
+//#include <uDataPacketServiceAPI/v1/packet.pb.h>
+//#include <uDataPacketServiceAPI/v1/stream_identifier.pb.h>
 #include "uFilterPicker/metrics.hpp"
 //#include <opentelemetry/sdk/metrics/view/instrument_selector_factory.h>
 //#include <opentelemetry/sdk/metrics/view/meter_selector_factory.h>

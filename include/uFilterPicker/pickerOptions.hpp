@@ -47,6 +47,15 @@ public:
     ///       of no value for (near) real-time processing.
     [[nodiscard]] std::chrono::microseconds getMaximumLatency() const noexcept; 
 
+    /// @brief Sets the picker burn-in time factor.  The picker will be able
+    ///        to begin making picks after this factor x filter group delay.
+    ///        This helps suppress spurious artifacts on start-up.
+    /// @param[in] burnInFactor   The burn in factor.
+    void setBurnInFactor(int burnInFactor); 
+    /// @result The burn-in factor.  
+    /// @note By default this is 3. 
+    [[nodiscard]] int getBurnInFactor() const noexcept;
+
     /// @brief Copy assignment.
     PickerOptions &operator=(const PickerOptions &);
     /// @brief Move assignment.

@@ -3,6 +3,7 @@
 #include <chrono>
 #include <utility>
 #include <string>
+#include <vector>
 #include <stdexcept>
 #include <exception>
 #include <spdlog/spdlog.h>
@@ -22,6 +23,7 @@ using namespace UFilterPicker;
 class Picker::PickerImpl
 {
 public:
+/*
     PickerImpl(const PickerOptions &options,
                const UDataPacketServiceAPI::V1::StreamIdentifier &identifier,
                std::unique_ptr<Detector> &&detector,
@@ -36,15 +38,17 @@ public:
                    nominalSamplingRate)
     {
     }
+*/
 
     PickerImpl(const PickerOptions &options,
-               const std::string &identifierString,
+               const UDataPacketServiceAPI::V1::StreamIdentifier &identifier, //std::string &identifierString,
                std::unique_ptr<Detector> &&detector,
                std::unique_ptr<ThresholdTrigger> &&trigger,
                std::shared_ptr<spdlog::logger> logger,
                const double nominalSamplingRate) :
         mOptions(options),
-        mIdentifierString(identifierString),
+        mIdentifier(identifier),
+        mIdentifierString(UFilterPicker::Utilities::toString(identifier)),
         mDetector(std::move(detector)),
         mTrigger(std::move(trigger)),
         mLogger(std::move(logger)),
@@ -82,8 +86,16 @@ public:
                                             + "-picker-console");
             //NOLINTEND(misc-include-cleaner)
         }
-
+        mMetricsKeyName = UFilterPicker::Metrics::toKeyName(mIdentifier);
+        if (mMetricsKeyName.empty())
+        {
+            throw std::runtime_error("Unable to generate key name");
+        }
+        mMaxLatency = mOptions.getMaximumLatency();
+        mMaxFutureTime = mOptions.getMaximumFutureTime();
+        mGapToleranceInSamples = mOptions.getGapTolerance();
         mFilterGroupDelay = mDetector->getGroupDelay();
+        mBurnInTime = mFilterGroupDelay*mOptions.getBurnInFactor();
         mInitialized = true;
         SPDLOG_LOGGER_INFO(mLogger,
                            "Made detector for {}",
@@ -133,29 +145,36 @@ public:
         // Timing information
         const auto startTime
             = Utilities::getStartTime<std::chrono::microseconds> (packet);
-        if (startTime > now)
-        {
-            throw std::invalid_argument("Will not process future packets");
-        }
-        const auto endTime
-            = Utilities::getEndTime<std::chrono::microseconds> (packet);
-        if (endTime < now - mMaxLatency)
+        if (startTime < now - mMaxLatency)
         {
             SPDLOG_LOGGER_WARN(mLogger, "Data is too latent - skipping");
             return;
+        }
+        const auto endTime
+            = Utilities::getEndTime<std::chrono::microseconds> (packet);
+        if (endTime > now + mMaxFutureTime)
+        {
+            throw std::invalid_argument("Will not process future packets");
         }
 
         // First packet is kinda easy
         if (mFirstPacket)
         {
-            auto characteristicFunction = mDetector->apply(samples);
             mLastSamplingRate = samplingRate;
+            mFirstSampleTime = startTime;
             mLastSampleTime = endTime;
             mFirstPacket = false;
-            return;
         }
         else
         {
+            if (startTime < mLastSampleTime)
+            {
+                SPDLOG_LOGGER_DEBUG(mLogger,
+                                    "Expired packet detected for {}; skipping",
+                                    mIdentifierString);
+                return;
+            }
+
             int gapSize{0};
             try
             {
@@ -170,22 +189,68 @@ public:
                 throw std::runtime_error("Failed to estimate gap because "
                                        + std::string {e.what()});
             } 
-            // Probably a clock error
+            // Gap - reset
             if (gapSize > mGapToleranceInSamples)
             {
                 SPDLOG_LOGGER_WARN(mLogger, "Gap detected - resetting");
+                mMetrics.incrementDetectorResetsCounter(mMetricsKeyName);
                 mDetector->resetInitialConditions();
                 mTrigger->resetInitialConditions();
-                mLastSamplingRate = samplingRate;
-                mLastSampleTime = endTime;
-                return;
+                mFirstSampleTime = startTime;
             } 
-            // Standard
+            else if (gapSize < 0)
+            {
+                // TODO should attempt to strip the packet data until we
+                // reach the next valid sample start time
+                SPDLOG_LOGGER_WARN(mLogger,
+                                   "Negative timing detected - resetting");
+                mMetrics.incrementDetectorResetsCounter(mMetricsKeyName);
+                mDetector->resetInitialConditions();
+                mTrigger->resetInitialConditions();
+                mFirstSampleTime = startTime;
+            }
+            // Standard - just roll over timings
             mLastSamplingRate = samplingRate;
             mLastSampleTime = endTime;
         }
+        // Apply the detector
+        auto characteristicFunction = mDetector->apply(samples);
+
+        // If the detector is burned in then apply the trigger
+        bool runTrigger{false};
+        auto shiftedPacketStartTime = startTime - mFilterGroupDelay;
+        if (startTime - mFirstSampleTime > mBurnInTime)
+        {
+            runTrigger = true;
+        }
+        else
+        {
+/*
+            if (endTime - mFirstSampleTime > mBurnInTime)
+            {
+                
+                runTrigger = true;
+            }
+*/
+        }
+ 
+        if (runTrigger)
+        {
+            //if (endTime - mFirstSampleTime > mBurnInTime &&
+            //    endTime - mFirstSampleTime > mFilterGroupDelay)
+            auto picks = mTrigger->apply(characteristicFunction,
+                                         shiftedPacketStartTime,
+                                         samplingRate);
+            if (!picks.empty())
+            {
+                auto nPicks = static_cast<int> (picks.size());
+                mMetrics.incrementPicksCounter(mMetricsKeyName, nPicks);
+            }
+            //return std::optional<UDataPacketServiceAPI::V1::Packet> (result);
+        }
     }
     PickerOptions mOptions;
+    UDataPacketServiceAPI::V1::StreamIdentifier mIdentifier;
     std::string mIdentifierString;
     std::unique_ptr<Detector> mDetector;
     std::unique_ptr<ThresholdTrigger> mTrigger;
@@ -194,9 +259,13 @@ public:
     {   
         UFilterPicker::Metrics::MetricsSingleton::getInstance()
     };  
+    std::string mMetricsKeyName;
     std::chrono::microseconds mFilterGroupDelay;
+    std::chrono::microseconds mFirstSampleTime{0};
     std::chrono::microseconds mLastSampleTime{0}; 
+    std::chrono::microseconds mMaxFutureTime{std::chrono::seconds {0}};
     std::chrono::microseconds mMaxLatency{std::chrono::minutes {5}};
+    std::chrono::microseconds mBurnInTime{std::chrono::seconds {10}};
     double mNominalSamplingRate{0};
     double mLastSamplingRate{0};
     int mGapToleranceInSamples{0};

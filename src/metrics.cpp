@@ -50,7 +50,7 @@ MetricsSingleton &MetricsSingleton::getInstance()
     return instance;
 }   
 
-void MetricsSingleton::incrementDetectorResets(const std::string &key)
+void MetricsSingleton::incrementDetectorResetsCounter(const std::string &key)
 {
     const std::lock_guard<std::mutex> lock(mMutex);
     auto idx = mResetsCounterMap.find(key);
@@ -71,17 +71,23 @@ MetricsSingleton::getDetectorResetsCounters() const noexcept
     return mResetsCounterMap;
 }
 
-void MetricsSingleton::incrementPicks(const std::string &key)
+void MetricsSingleton::incrementPicksCounter(
+    const std::string &key, const int nPicks)
 {
+    if (nPicks < 0)
+    {
+        throw std::invalid_argument("Must increment picks by positive amount");
+    }
+    if (nPicks == 0){return;}
     const std::lock_guard<std::mutex> lock(mMutex);
     auto idx = mPicksCounterMap.find(key);
     if (idx == mPicksCounterMap.end())
     {
-        mPicksCounterMap.insert( std::pair {key, 1} );
+        mPicksCounterMap.insert( std::pair {key, nPicks} );
     }
     else
     {
-        idx->second = idx->second + 1;
+        idx->second = idx->second + nPicks;
     }
 }
 

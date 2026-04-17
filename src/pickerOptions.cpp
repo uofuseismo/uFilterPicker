@@ -1,4 +1,5 @@
 #include <stdexcept>
+#include <chrono>
 #include <memory>
 #include <utility>
 #include "uFilterPicker/pickerOptions.hpp"
@@ -11,6 +12,7 @@ public:
     std::chrono::microseconds mMaximumLatency{std::chrono::minutes{15}};
     std::chrono::microseconds mMaximumFutureTime{0};
     int mGapTolerance{5}; 
+    int mBurnInFactor{3};
 };
 
 /// Constructor
@@ -91,4 +93,19 @@ void PickerOptions::setMaximumLatency(
 std::chrono::microseconds PickerOptions::getMaximumLatency() const noexcept
 {
     return pImpl->mMaximumLatency;
+}
+
+/// Burn in factor
+void PickerOptions::setBurnInFactor(const int factor)
+{
+    if (factor < 0)
+    {
+        throw std::invalid_argument("Burn-in factor must be non-negative");
+    }
+    pImpl->mBurnInFactor = factor;
+}
+
+int PickerOptions::getBurnInFactor() const noexcept
+{
+    return pImpl->mBurnInFactor;
 }
