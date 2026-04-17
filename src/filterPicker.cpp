@@ -45,6 +45,7 @@
 #include <uDataPacketServiceAPI/v1/data_type.pb.h>
 //#include <readerwriterqueue.h>
 #include "uFilterPicker/picker.hpp"
+#include "uFilterPicker/pickerOptions.hpp"
 #include "uFilterPicker/utilities.hpp"
 #include "uFilterPicker/detector.hpp"
 #include "uFilterPicker/subscriber.hpp"
@@ -255,7 +256,8 @@ public:
 double nominalSamplingRate{100};
             auto picker
                 = std::make_unique<UFilterPicker::Picker>
-                  (streamIdentifier,
+                  (mOptions.pickerOptions,
+                   streamIdentifier,
                    std::move(detector),
                    std::move(thresholdPicker),
                    mLogger,
@@ -367,10 +369,12 @@ if (np > 1000){
     /// Callback for packet subscriber
     void getPacket(UDataPacketServiceAPI::V1::Packet &&packet)
     {
-        if (mImportQueue.size() >= mMaximumImportQueueSize)
+        if (static_cast<size_t> (mImportQueue.size()) >=
+            mMaximumImportQueueSize)
         {
             SPDLOG_LOGGER_WARN(mLogger, "Queue full - popping packets");
-            while (mImportQueue.size() >= mMaximumImportQueueSize)
+            while (static_cast<size_t> (mImportQueue.size()) >=
+                   mMaximumImportQueueSize)
             {
                 UDataPacketServiceAPI::V1::Packet work;
                 if (!mImportQueue.try_pop(work))

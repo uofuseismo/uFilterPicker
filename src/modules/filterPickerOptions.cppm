@@ -28,6 +28,7 @@ module;
 #include <uDataPacketServiceAPI/v1/stream_identifier.pb.h>
 #include "uFilterPicker/subscriberOptions.hpp"
 #include "uFilterPicker/grpcClientOptions.hpp"
+#include "uFilterPicker/pickerOptions.hpp"
 #include "uFilterPicker/utilities.hpp"
 
 #define APPLICATION_NAME "uFilterPickerDetector"
@@ -184,6 +185,7 @@ struct ProgramOptions
 {
     //UFilterPicker::GRPCClientOptions grpcClientOptions;
     UFilterPicker::SubscriberOptions packetSubscriberOptions;
+    UFilterPicker::PickerOptions pickerOptions;
     //NOLINTBEGIN(misc-include-cleaner)
     UFilterPicker::OTelOptions::HTTPMetrics otelHTTPMetricsOptions;
     UFilterPicker::OTelOptions::HTTPLog otelHTTPLogOptions;

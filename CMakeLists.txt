@@ -81,6 +81,7 @@ set(LIBRARY_SRC
     src/characteristicFunction.cpp
     src/narrowBandFilter.cpp
     src/picker.cpp
+    src/pickerOptions.cpp
     src/pipeline.cpp
     src/thresholdTrigger.cpp
     src/detector.cpp
@@ -104,6 +105,7 @@ set(LIBRARY_HEADER_FILES
     include/uFilterPicker/metrics.hpp
     include/uFilterPicker/narrowBandFilter.hpp
     include/uFilterPicker/picker.hpp
+    include/uFilterPicker/pickerOptions.hpp
     include/uFilterPicker/pipeline.hpp
     include/uFilterPicker/thresholdTrigger.hpp
     include/uFilterPicker/grpcClientOptions.hpp
@@ -261,6 +263,7 @@ endif()
 if (PROJECT_IS_TOP_LEVEL AND ${BUILD_TESTS})
    add_executable(unitTests
                   testing/utilities.cpp
+                  testing/picker.cpp
                   testing/grpc.cpp
                   uDataPacketServiceAPI/v1/packet.proto)
    set_target_properties(unitTests PROPERTIES

@@ -15,6 +15,7 @@ namespace UDataPacketServiceAPI
 }
 namespace UFilterPicker
 {
+ class PickerOptions;
  class Detector;
  class ThresholdTrigger; 
 }
@@ -30,7 +31,8 @@ class Picker
 public:
     /// @brief Constructs the picker from the stream identifier,
     ///        a detector, trigger, logger, and nominal sampling rate. 
-    Picker(const UDataPacketServiceAPI::V1::StreamIdentifier &streamIdentifier,
+    Picker(const PickerOptions &options,
+           const UDataPacketServiceAPI::V1::StreamIdentifier &streamIdentifier,
            std::unique_ptr<UFilterPicker::Detector> &&detector,
            std::unique_ptr<UFilterPicker::ThresholdTrigger> &&trigger,
            std::shared_ptr<spdlog::logger> logger,

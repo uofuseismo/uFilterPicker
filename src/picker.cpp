@@ -11,6 +11,7 @@
 #include <uDataPacketServiceAPI/v1/packet.pb.h>
 #include <spdlog/logger.h>
 #include "uFilterPicker/picker.hpp"
+#include "uFilterPicker/pickerOptions.hpp"
 #include "uFilterPicker/detector.hpp"
 #include "uFilterPicker/thresholdTrigger.hpp"
 #include "uFilterPicker/utilities.hpp"
@@ -21,12 +22,14 @@ using namespace UFilterPicker;
 class Picker::PickerImpl
 {
 public:
-    PickerImpl(const UDataPacketServiceAPI::V1::StreamIdentifier &identifier,
+    PickerImpl(const PickerOptions &options,
+               const UDataPacketServiceAPI::V1::StreamIdentifier &identifier,
                std::unique_ptr<Detector> &&detector,
                std::unique_ptr<ThresholdTrigger> &&trigger,
                std::shared_ptr<spdlog::logger> logger,
                const double nominalSamplingRate) :
-        PickerImpl(UFilterPicker::Utilities::toString(identifier),
+        PickerImpl(options,
+                   UFilterPicker::Utilities::toString(identifier),
                    std::move(detector),
                    std::move(trigger),
                    std::move(logger),
@@ -34,11 +37,13 @@ public:
     {
     }
 
-    PickerImpl(const std::string &identifierString,
+    PickerImpl(const PickerOptions &options,
+               const std::string &identifierString,
                std::unique_ptr<Detector> &&detector,
                std::unique_ptr<ThresholdTrigger> &&trigger,
                std::shared_ptr<spdlog::logger> logger,
                const double nominalSamplingRate) :
+        mOptions(options),
         mIdentifierString(identifierString),
         mDetector(std::move(detector)),
         mTrigger(std::move(trigger)),
@@ -125,7 +130,7 @@ public:
         {
             throw std::invalid_argument("Packet has samples but no data");
         }
-        // Apply the detector
+        // Timing information
         const auto startTime
             = Utilities::getStartTime<std::chrono::microseconds> (packet);
         if (startTime > now)
@@ -140,12 +145,14 @@ public:
             return;
         }
 
+        // First packet is kinda easy
         if (mFirstPacket)
         {
             auto characteristicFunction = mDetector->apply(samples);
             mLastSamplingRate = samplingRate;
             mLastSampleTime = endTime;
             mFirstPacket = false;
+            return;
         }
         else
         {
@@ -178,7 +185,7 @@ public:
             mLastSampleTime = endTime;
         }
     }
-
+    PickerOptions mOptions;
     std::string mIdentifierString;
     std::unique_ptr<Detector> mDetector;
     std::unique_ptr<ThresholdTrigger> mTrigger;
@@ -201,13 +208,15 @@ public:
 /// Constructor
 Picker::Picker
 (
+    const PickerOptions &options,
     const UDataPacketServiceAPI::V1::StreamIdentifier &streamIdentifier,
     std::unique_ptr<UFilterPicker::Detector> &&detector,
     std::unique_ptr<UFilterPicker::ThresholdTrigger> &&trigger,
     std::shared_ptr<spdlog::logger> logger,
     double nominalSamplingRate
 ) :
-    pImpl(std::make_unique<PickerImpl> (streamIdentifier,
+    pImpl(std::make_unique<PickerImpl> (options,
+                                        streamIdentifier,
                                         std::move(detector),
                                         std::move(trigger),
                                         std::move(logger),
