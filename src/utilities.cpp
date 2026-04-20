@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstdlib>
 #include <cstddef>
 #include <cstdint>
 #include <cctype>
@@ -375,33 +376,42 @@ int UFilterPicker::Utilities::getGapSizeInSamples(
 }
 
 std::pair<std::vector<double>, std::chrono::microseconds> 
-UFilterPicker::Utilities::trimData(
+UFilterPicker::Utilities::leftTrim(
     const std::chrono::microseconds &desiredStartTime,
     const std::vector<double> &inputData,
     const std::chrono::microseconds &startTime,
     const double packetSamplingRateHz)
 {
     // This is satisfied by default
-    if (desiredStartTime <= startTime){return std::pair {inputData, startTime};}
+    if (desiredStartTime <= startTime)
+    {
+        return std::pair {inputData, startTime};
+    }
     // No way to fix this
-    if (inputData.empty()){return std::pair {inputData, startTime};}
+    if (inputData.empty())
+    {
+        return std::pair {inputData, startTime};
+    }
     // Figure out the offset
     const auto samplingPeriodMuS
         = static_cast<int64_t> (std::round(1000000./packetSamplingRateHz));
+    const auto halfSamplingPeriodMuS
+        = static_cast<int64_t> (std::round(500000./packetSamplingRateHz));
     auto nSamples = static_cast<int> (inputData.size());
     auto endTime
         = startTime
         + std::chrono::microseconds {(nSamples - 1)*samplingPeriodMuS};
     // Edge case at end (I want the last sample)
-    if (endTime == desiredStartTime)
+    if (std::abs(endTime.count() - desiredStartTime.count())
+        < halfSamplingPeriodMuS)
     {
-        std::vector<double> outputData{inputData.back()};
+        const std::vector<double> outputData{inputData.back()};
         return std::pair {outputData, desiredStartTime};
     }
     // My desired start time exceeds the end time - I get nothing
-    else if (endTime > desiredStartTime)
+    if (desiredStartTime > endTime)
     {
-        std::vector<double> outputData;
+        const std::vector<double> outputData;
         return std::pair {outputData, desiredStartTime};
     }
     // Okay, this is normal - I'm some offset into the signal
@@ -412,41 +422,58 @@ UFilterPicker::Utilities::trimData(
     auto offsetSamples = static_cast<int>
           (std::round(static_cast<double> (deltaMuS)
                      /static_cast<double> (samplingPeriodMuS)));
-    // Again, we a packet that is out of range
+    // Only first sample
+    if (offsetSamples == 0 || deltaMuS < samplingPeriodMuS)
+    {
+        const std::vector<double> outputData{inputData.back()};
+        return std::pair {outputData, desiredStartTime};
+    }   
+    // Again, we have a packet that is out of range
     if (offsetSamples >= nSamples)
     {
-        std::vector<double> outputData;
+        const std::vector<double> outputData;
         return std::pair {outputData, desiredStartTime};
     }
     // Goal is to find the next sample that is greater than or equal to the
     // desired time
-    constexpr int64_t t0{0}; //startTime.count();
-    auto t1 = deltaMuS; //desiredStartTime.count() - startTime.count(); // Shift it
-    std::array<std::pair<int64_t, int>, 3> t1Estimates
+    constexpr int64_t t0{0};// - startTime.count()};
+    const auto t1 = deltaMuS; //desiredStartTime.count();// - startTime.count();
+    const std::array<std::pair<int64_t, int>, 4> t1Estimates
     {
-        std::pair {std::abs(t1 - (t0 + (offsetSamples - 1)*samplingPeriodMuS)),
-                   offsetSamples - 1}, 
-        std::pair {std::abs(t1 - (t0 + (offsetSamples + 0)*samplingPeriodMuS)),
-                   offsetSamples + 0},
-        std::pair {std::abs(t1 - (t0 + (offsetSamples + 1)*samplingPeriodMuS)),
-                   offsetSamples + 1}
+        // Offset is inclusive - so output samples is + 1
+        std::pair {t0 + (offsetSamples + 1 - 2)*samplingPeriodMuS,
+                   offsetSamples + 1 - 2 + 1},
+        std::pair {t0 + (offsetSamples + 1 - 1)*samplingPeriodMuS,
+                   offsetSamples + 1 - 1 + 1},
+        std::pair {t0 + (offsetSamples + 1 + 0)*samplingPeriodMuS,
+                   offsetSamples + 1 + 0 + 1},
+        std::pair {t0 + (offsetSamples + 1 + 1)*samplingPeriodMuS,
+                   offsetSamples + 1 + 1 + 1}, 
     };
+/*
     std::sort(t1Estimates.begin(), t1Estimates.end(), 
               [](const auto &lhs, const auto &rhs)
               {
                  return lhs.first < rhs.first;
               });  
+*/
     for (const auto &estimate : t1Estimates)
     {
         if (estimate.first >= t1)
         {
             auto nSamplesOut = std::min(nSamples, estimate.second);
-            std::vector<double> outputData(nSamplesOut);
-            std::copy(inputData.data(),
-                      inputData.data() + nSamplesOut,
-                      outputData.begin());
+            std::vector<double> outputData;
+            outputData.reserve(nSamplesOut);
+            auto offsetRealized = nSamplesOut - 1;
+            for (int i = offsetRealized; i < static_cast<int> (nSamples); ++i)
+            {
+                outputData.push_back(inputData[i]);
+            }
             auto outputTime = startTime
-                + std::chrono::microseconds {(nSamplesOut - 1)*samplingPeriodMuS}; 
+                            + std::chrono::microseconds
+                              {
+                                  (nSamplesOut - 1)*samplingPeriodMuS
+                              }; 
             return {outputData, outputTime};  
         }
     }

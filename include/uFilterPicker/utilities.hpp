@@ -64,7 +64,7 @@ int getGapSizeInSamples(const std::chrono::microseconds &packetStartTime,
 ///         be at least the desiredStartTime.
 [[nodiscard]]
 std::pair<std::vector<double>, std::chrono::microseconds> 
-trimData(const std::chrono::microseconds &desiredStartTime,
+leftTrim(const std::chrono::microseconds &desiredStartTime,
          const std::vector<double> &inputData,
          const std::chrono::microseconds &startTime,
          const double packetSamplingRateHz);

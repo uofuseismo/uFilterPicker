@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 #include <algorithm>
+#include <numeric>
 #include <string>
 #include <chrono>
 #ifndef NDEBUG
@@ -303,8 +304,71 @@ TEST_CASE("UFilterPicker::Utilities", "[gap]")
 
 TEST_CASE("UFilterPicker::Utilities", "[leftTrim]")
 {
+    using namespace UFilterPicker::Utilities;
     SECTION("Too early")
     {
-
+        std::vector<double> data(100); 
+        std::iota(data.begin(), data.end(), 0);
+        constexpr double samplingRate{100};
+        const std::chrono::microseconds startTime{1776643200};
+        const std::chrono::microseconds desiredStartTime
+            = startTime - std::chrono::seconds {1}; 
+        auto [trimmedData, newStartTime]
+            = leftTrim(desiredStartTime, data, startTime, samplingRate);
+        REQUIRE(newStartTime == startTime);
+        REQUIRE(trimmedData.size() == data.size());
+    }
+    SECTION("Right on time - copy everything")
+    {
+        std::vector<double> data(100); 
+        std::iota(data.begin(), data.end(), 0); 
+        constexpr double samplingRate{100};
+        const std::chrono::microseconds startTime{1776643200};
+        const std::chrono::microseconds desiredStartTime{startTime};
+        auto [trimmedData, newStartTime]
+            = leftTrim(desiredStartTime, data, startTime, samplingRate);
+        REQUIRE(newStartTime == startTime);
+        REQUIRE(trimmedData.size() == data.size());
+    }
+    SECTION("Too late")
+    {
+        std::vector<double> data(100); 
+        std::iota(data.begin(), data.end(), 0); 
+        constexpr double samplingRate{100};
+        const std::chrono::microseconds startTime{1776643200};
+        const std::chrono::microseconds desiredStartTime
+            = startTime + std::chrono::seconds{1};
+        auto [trimmedData, newStartTime]
+            = leftTrim(desiredStartTime, data, startTime, samplingRate);
+        REQUIRE(newStartTime == desiredStartTime);
+        REQUIRE(trimmedData.empty());
+    }
+    SECTION("Last sample")
+    {
+        std::vector<double> data(101); 
+        std::iota(data.begin(), data.end(), 0);
+        constexpr double samplingRate{100};
+        const std::chrono::microseconds startTime{1776643200};
+        const std::chrono::microseconds desiredStartTime
+            = startTime + std::chrono::seconds{1};
+        auto [trimmedData, newStartTime]
+            = leftTrim(desiredStartTime, data, startTime, samplingRate);
+        REQUIRE(newStartTime == desiredStartTime);
+        REQUIRE(trimmedData.size() == 1);
+    }
+    SECTION("Half signal")
+    {
+        std::vector<double> data(101);
+        std::iota(data.begin(), data.end(), 0);
+        constexpr double samplingRate{100};
+        const std::chrono::microseconds startTime{1776643200};
+        const std::chrono::microseconds desiredStartTime
+            = startTime + std::chrono::milliseconds{500}; // Half second
+        auto [trimmedData, newStartTime]
+            = leftTrim(desiredStartTime, data, startTime, samplingRate);
+        REQUIRE(newStartTime == desiredStartTime);
+        REQUIRE(trimmedData.size() == static_cast<size_t> (50 + 1));
+        REQUIRE(std::abs(data.at(50) - trimmedData.front()) < 1.e-13);
+        REQUIRE(std::abs(data.back() - trimmedData.back()) < 1.e-13);
     }
 }

@@ -230,13 +230,32 @@ std::cout << std::setprecision(16) << mIdentifierString << " " << startTime.coun
         }
         else
         {
-/*
+            // Start offset into packet
             if (endTime - mFirstSampleTime > mBurnInTime)
             {
-                
-                runTrigger = true;
+                try
+                {
+                    auto desiredStartTime = mFirstSampleTime + mBurnInTime;
+                    auto [trimmedCF, newStartTime]
+                        = Utilities::leftTrim(desiredStartTime,
+                                              characteristicFunction,
+                                              startTime,
+                                              samplingRate);
+                    if (!trimmedCF.empty())
+                    {
+                        characteristicFunction = std::move(trimmedCF);
+                        shiftedPacketStartTime
+                            = newStartTime - mFilterGroupDelay;
+                       runTrigger = true;
+                    }
+                }
+                catch (const std::exception &e)
+                {
+                    SPDLOG_LOGGER_WARN(mLogger, "Error detected in trim: {}",
+                                       std::string {e.what()});
+                    runTrigger = false;
+                }
             }
-*/
         }
  
         if (runTrigger)
@@ -248,6 +267,7 @@ std::cout << std::setprecision(16) << mIdentifierString << " " << startTime.coun
                                          samplingRate);
             if (!picks.empty())
             {
+std::cout << "Made a pick" << std::endl;
                 auto nPicks = static_cast<int> (picks.size());
                 mMetrics.incrementPicksCounter(mMetricsKeyName, nPicks);
             }
