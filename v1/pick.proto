@@ -9,7 +9,7 @@ import "uFilterPickerProxyAPI/v1/phase_hint.proto";
 
 message Pick {
     StreamIdentifier stream_identifier = 1; /// Defines the stream on which the pick was made.
-    google.protobuf.Timestamp start_time = 2; /// The time (UTC) of the pick.
+    google.protobuf.Timestamp time = 2; /// The time (UTC) of the pick.
     PhaseHint phase_hint = 3 [default = PHASE_HINT_UNKNOWN]; /// The phase hint.
     string algorithm = 4 [default = ""]; /// The algorithm (version) that generated this pick.
 }
