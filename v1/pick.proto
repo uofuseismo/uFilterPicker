@@ -1,5 +1,6 @@
 edition = "2023";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 
 package UFilterPickerProxyAPI.V1;
 
