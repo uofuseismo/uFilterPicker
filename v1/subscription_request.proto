@@ -8,5 +8,5 @@ package UFilterPickerProxyAPI.V1;
  */
 message SubscriptionRequest {
     string identifier = 1 [default = ""]; /// A request identifier.
-    google.protobuf.Duration backfill_duration = 2 [default = 0]; /// If the consumer or proxy drops out this allows for a pick backfill operation.
+    google.protobuf.Duration backfill_duration = 2; /// If the consumer or proxy drops out this allows for a pick backfill operation.
 }
