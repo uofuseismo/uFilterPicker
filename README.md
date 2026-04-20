@@ -2,7 +2,7 @@
 To be able to import data packets
 
     git subtree add --prefix uDataPacketServiceAPI https://github.com/uofuseismo/uDataPacketServiceAPI.git main --squash
-
+    git subtree add --prefix uFilterPickerProxyAPI https://github.com/uofuseismo/uFilterPickerProxyAPI.git main --squash
 
 # Conan
 
