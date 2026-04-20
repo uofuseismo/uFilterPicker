@@ -386,7 +386,7 @@ UFilterPicker::Utilities::toPPick(
 {
     UFilterPickerProxyAPI::V1::Pick result;
     *result.mutable_stream_identifier() = identifierIn;
-    *result.mutable_start_time()
+    *result.mutable_time()
         = google::protobuf::util::TimeUtil::MicrosecondsToTimestamp(pickTime.count());
     result.set_phase_hint(UFilterPickerProxyAPI::V1::PhaseHint::PHASE_HINT_P);
     if (!algorithm.empty())

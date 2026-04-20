@@ -1,7 +1,9 @@
 #include <bit>
 #include <type_traits>
 #include <limits>
+#include <cstddef>
 #include <cstdint>
+#include <cmath>
 #include <vector>
 #include <algorithm>
 #include <numeric>
@@ -178,11 +180,13 @@ TEST_CASE("UFilterPicker::Utilities", "[toPPick]")
     identifier.set_network(network);
     identifier.set_station(station);
     identifier.set_channel(channel);
+    identifier.set_location_code(locationCode);
 
     auto pPick = UFilterPicker::Utilities::toPPick(pickTime, identifier, algorithm);
     const auto pickTimeBack
         = google::protobuf::util::TimeUtil::TimestampToMicroseconds(pPick.time());
     REQUIRE(pickTimeBack == pickTime.count());
+    REQUIRE(pPick.phase_hint() == UFilterPickerProxyAPI::V1::PhaseHint::PHASE_HINT_P);
     REQUIRE(pPick.stream_identifier().network() == network);
     REQUIRE(pPick.stream_identifier().station() == station);
     REQUIRE(pPick.stream_identifier().channel() == channel);

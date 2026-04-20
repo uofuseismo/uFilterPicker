@@ -10,6 +10,8 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <uDataPacketServiceAPI/v1/stream_identifier.pb.h>
 #include <uDataPacketServiceAPI/v1/packet.pb.h>
+#include <uFilterPickerProxyAPI/v1/pick.pb.h>
+#include <uFilterPickerProxyAPI/v1/stream_identifier.pb.h>
 #include <spdlog/logger.h>
 #include "uFilterPicker/picker.hpp"
 #include "uFilterPicker/pickerOptions.hpp"
@@ -48,6 +50,7 @@ public:
                const double nominalSamplingRate) :
         mOptions(options),
         mIdentifier(identifier),
+        mPickIdentifier(UFilterPicker::Utilities::convertIdentifier(identifier)),
         mIdentifierString(UFilterPicker::Utilities::toString(identifier)),
         mDetector(std::move(detector)),
         mTrigger(std::move(trigger)),
@@ -267,6 +270,10 @@ std::cout << std::setprecision(16) << mIdentifierString << " " << startTime.coun
                                          samplingRate);
             if (!picks.empty())
             {
+                for (const auto &pick : picks)
+                {
+                    auto p2 = Utilities::toPPick(pick, mPickIdentifier, "uFilterPicker");
+                }
 std::cout << "Made a pick" << std::endl;
                 auto nPicks = static_cast<int> (picks.size());
                 mMetrics.incrementPicksCounter(mMetricsKeyName, nPicks);
@@ -276,6 +283,7 @@ std::cout << "Made a pick" << std::endl;
     }
     PickerOptions mOptions;
     UDataPacketServiceAPI::V1::StreamIdentifier mIdentifier;
+    UFilterPickerProxyAPI::V1::StreamIdentifier mPickIdentifier;
     std::string mIdentifierString;
     std::unique_ptr<Detector> mDetector;
     std::unique_ptr<ThresholdTrigger> mTrigger;
