@@ -14,6 +14,9 @@
 #include <uDataPacketServiceAPI/v1/packet.pb.h>
 #include <uDataPacketServiceAPI/v1/data_type.pb.h>
 #include <uDataPacketServiceAPI/v1/stream_identifier.pb.h>
+#include <uFilterPickerProxyAPI/v1/pick.pb.h>
+#include <uFilterPickerProxyAPI/v1/phase_hint.pb.h>
+#include <uFilterPickerProxyAPI/v1/stream_identifier.pb.h>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 //#include <catch2/catch_approx.hpp>
@@ -124,6 +127,68 @@ TEST_CASE("UFilterPicker::Utilities", "[toString]")
         REQUIRE(UFilterPicker::Utilities::toString(packet) == "UU.HVU.HHZ.01");
         // NOLINTEND
     }
+}
+
+TEST_CASE("UFilterPicker::Utilities", "[convertIdentifier]")
+{
+    const std::string networkIn{"uu"}; const std::string network{"UU"};
+    const std::string stationIn{"hvu"}; const std::string station{"HVU"};
+    const std::string channelIn{"hhz"}; const std::string channel{"HHZ"};
+    const std::string locationCode{"01"};
+
+    UDataPacketServiceAPI::V1::StreamIdentifier identifierIn;
+    identifierIn.set_network(networkIn);
+    identifierIn.set_station(stationIn);
+    identifierIn.set_channel(channelIn);
+
+    SECTION("With location code")
+    {
+        identifierIn.set_location_code(locationCode);
+
+        auto identifier
+            = UFilterPicker::Utilities::convertIdentifier(identifierIn); 
+        REQUIRE(identifier.network() == network);
+        REQUIRE(identifier.station() == station);
+        REQUIRE(identifier.channel() == channel);
+        REQUIRE(identifier.location_code() == locationCode);
+    }
+
+    SECTION("No location code")
+    {
+        auto identifier 
+            = UFilterPicker::Utilities::convertIdentifier(identifierIn);
+        REQUIRE(identifier.network() == network);
+        REQUIRE(identifier.station() == station);
+        REQUIRE(identifier.channel() == channel);
+        REQUIRE(identifier.location_code() == "--");
+    }
+}
+
+TEST_CASE("UFilterPicker::Utilities", "[toPPick]")
+{
+    constexpr std::chrono::microseconds pickTime{10};
+    const std::string algorithm{"uFilterPicker12"};
+    
+    const std::string network{"UU"};
+    const std::string station{"HVU"};
+    const std::string channel{"HHZ"};
+    const std::string locationCode{"01"};
+
+    UFilterPickerProxyAPI::V1::StreamIdentifier identifier;
+    identifier.set_network(network);
+    identifier.set_station(station);
+    identifier.set_channel(channel);
+
+    auto pPick = UFilterPicker::Utilities::toPPick(pickTime, identifier, algorithm);
+    const auto pickTimeBack
+        = google::protobuf::util::TimeUtil::TimestampToMicroseconds(pPick.time());
+    REQUIRE(pickTimeBack == pickTime.count());
+    REQUIRE(pPick.stream_identifier().network() == network);
+    REQUIRE(pPick.stream_identifier().station() == station);
+    REQUIRE(pPick.stream_identifier().channel() == channel);
+    REQUIRE(pPick.stream_identifier().location_code() == locationCode);
+    REQUIRE(pPick.algorithm() == algorithm);
+ 
 }
 
 TEMPLATE_TEST_CASE("UFilterPicker::Utilities", "[unpackData]",

@@ -21,6 +21,9 @@
 #include "uDataPacketServiceAPI/v1/packet.pb.h"
 #include "uDataPacketServiceAPI/v1/stream_identifier.pb.h"
 #include "uDataPacketServiceAPI/v1/data_type.pb.h"
+#include "uFilterPickerProxyAPI/v1/pick.pb.h"
+#include "uFilterPickerProxyAPI/v1/phase_hint.pb.h"
+#include "uFilterPickerProxyAPI/v1/stream_identifier.pb.h"
 
 namespace
 {
@@ -373,6 +376,57 @@ int UFilterPicker::Utilities::getGapSizeInSamples(
     }
     if (!success){throw std::runtime_error("Crude gap estimation failed");}
     return sign*gapSamples; 
+}
+
+UFilterPickerProxyAPI::V1::Pick 
+UFilterPicker::Utilities::toPPick(
+    const std::chrono::microseconds &pickTime,
+    const UFilterPickerProxyAPI::V1::StreamIdentifier &identifierIn,
+    const std::string &algorithm)
+{
+    UFilterPickerProxyAPI::V1::Pick result;
+    *result.mutable_stream_identifier() = identifierIn;
+    *result.mutable_start_time()
+        = google::protobuf::util::TimeUtil::MicrosecondsToTimestamp(pickTime.count());
+    result.set_phase_hint(UFilterPickerProxyAPI::V1::PhaseHint::PHASE_HINT_P);
+    if (!algorithm.empty())
+    {
+        *result.mutable_algorithm() = algorithm;
+    }
+    return result; 
+}
+
+UFilterPickerProxyAPI::V1::StreamIdentifier 
+UFilterPicker::Utilities::convertIdentifier(
+    const UDataPacketServiceAPI::V1::StreamIdentifier &identifierIn)
+{
+    /// Identifier
+    UFilterPickerProxyAPI::V1::StreamIdentifier identifier;
+    auto network = identifierIn.network();
+    if (network.empty()){throw std::invalid_argument("No network");}
+    std::transform(network.begin(), network.end(), network.begin(), ::toupper);
+    auto station = identifierIn.station();
+    if (station.empty()){throw std::invalid_argument("No station");}
+    std::transform(station.begin(), station.end(), station.begin(), ::toupper);
+    auto channel = identifierIn.channel();
+    if (channel.empty()){throw std::invalid_argument("No channel");}
+    std::transform(channel.begin(), channel.end(), channel.begin(), ::toupper);
+    
+    identifier.set_network(std::move(network));
+    identifier.set_station(std::move(station));
+    identifier.set_channel(std::move(channel));
+    if (identifierIn.has_location_code())
+    {   
+        auto locationCode = identifierIn.location_code();
+        std::transform(locationCode.begin(), locationCode.end(),
+                       locationCode.begin(), ::toupper);
+        identifier.set_location_code(std::move(locationCode));
+    }   
+    else
+    {
+        identifier.set_location_code("--");
+    }
+    return identifier;
 }
 
 std::pair<std::vector<double>, std::chrono::microseconds> 

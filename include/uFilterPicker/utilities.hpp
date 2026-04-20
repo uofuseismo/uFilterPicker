@@ -10,6 +10,11 @@ namespace UDataPacketServiceAPI::V1
  class Packet;
  class StreamIdentifier;
 }
+namespace UFilterPickerProxyAPI::V1
+{
+ class Pick;
+ class StreamIdentifier;
+}
 
 namespace UFilterPicker::Utilities
 {
@@ -68,6 +73,16 @@ leftTrim(const std::chrono::microseconds &desiredStartTime,
          const std::vector<double> &inputData,
          const std::chrono::microseconds &startTime,
          const double packetSamplingRateHz);
+
+/// @brief Creates a P pick message.
+[[nodiscard]] 
+UFilterPickerProxyAPI::V1::Pick 
+    toPPick(const std::chrono::microseconds &pickTime,
+            const UFilterPickerProxyAPI::V1::StreamIdentifier &identifier,
+            const std::string &algorithm);
+[[nodiscard]]
+UFilterPickerProxyAPI::V1::StreamIdentifier convertIdentifier(
+    const UDataPacketServiceAPI::V1::StreamIdentifier &identifierIn);
 
 }
 

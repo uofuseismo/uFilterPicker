@@ -100,7 +100,6 @@ set(IMPORT_PROTO_SRC
     uFilterPickerProxyAPI/v1/stream_identifier.proto
     uFilterPickerProxyAPI/v1/phase_hint.proto
     uFilterPickerProxyAPI/v1/pick.proto
-uFilterPickerProxyAPI/v1/subscription_request.proto
     )   
 set(LIBRARY_HEADER_FILES 
     include/uFilterPicker/characteristicFunction.hpp
@@ -269,7 +268,11 @@ if (PROJECT_IS_TOP_LEVEL AND ${BUILD_TESTS})
                   testing/utilities.cpp
                   testing/picker.cpp
                   testing/grpc.cpp
-                  uDataPacketServiceAPI/v1/packet.proto)
+                  uDataPacketServiceAPI/v1/packet.proto
+                  uFilterPickerProxyAPI/v1/stream_identifier.proto
+                  uFilterPickerProxyAPI/v1/phase_hint.proto
+                  uFilterPickerProxyAPI/v1/pick.proto
+   )
    set_target_properties(unitTests PROPERTIES
                          CXX_STANDARD 23
                          CXX_STANDARD_REQUIRED YES 
