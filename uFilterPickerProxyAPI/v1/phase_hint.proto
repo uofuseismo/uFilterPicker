@@ -1,6 +1,6 @@
 edition = "2023";
 
-package UDataPacketImportAPI.V1;
+package UFilterPickerProxyAPI.V1;
 
 /*!
  * Defines the underlying data type when interpreting data.
