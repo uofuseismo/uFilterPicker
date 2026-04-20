@@ -97,6 +97,9 @@ set(IMPORT_PROTO_SRC
     uDataPacketServiceAPI/v1/subscribe_to_all_request.proto
     uDataPacketServiceAPI/v1/subscription_request.proto
     uDataPacketServiceAPI/v1/broadcast.proto
+    uFilterPickerProxyAPI/v1/stream_identifier.proto
+    uFilterPickerProxyAPI/v1/phase_hint.proto
+    uFilterPickerProxyAPI/v1/pick.proto
     )   
 set(LIBRARY_HEADER_FILES 
     include/uFilterPicker/characteristicFunction.hpp
