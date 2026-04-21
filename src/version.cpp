@@ -37,3 +37,8 @@ std::string Version::getVersion() noexcept
     return version;
 }
 
+std::string Version::getTag() noexcept
+{
+    const std::string tag{uFilterPicker_GITTAG};
+    return tag;
+}

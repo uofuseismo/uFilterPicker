@@ -72,6 +72,21 @@ if (${USE_CLANG_TIDY} AND PROJECT_IS_TOP_LEVEL)
    endif()
 endif()
 
+find_package(Git)
+if (Git_FOUND)
+   execute_process(
+     COMMAND ${GIT_EXECUTABLE} --no-pager log -n 1 HEAD "--pretty=format:%h"
+     OUTPUT_VARIABLE uFilterPicker_GITTAG
+     RESULT_VARIABLE gitresult
+     ERROR_QUIET
+     OUTPUT_STRIP_TRAILING_WHITESPACE
+   )
+   if (gitresult EQUAL 0)
+      message(STATUS "Last Git commit: ${uFilterPicker_GITTAG}")
+   endif()
+else()
+   set(uFilterPicker_GITTAG "")
+endif()
 configure_file(${CMAKE_SOURCE_DIR}/src/version.hpp.in
                ${CMAKE_SOURCE_DIR}/include/uFilterPicker/version.hpp)
 
