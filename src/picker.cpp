@@ -17,6 +17,7 @@
 #include "uFilterPicker/pickerOptions.hpp"
 #include "uFilterPicker/detector.hpp"
 #include "uFilterPicker/thresholdTrigger.hpp"
+#include "uFilterPicker/version.hpp"
 #include "uFilterPicker/utilities.hpp"
 #include "uFilterPicker/metrics.hpp"
 
@@ -292,6 +293,8 @@ std::cout << "Made a pick" << std::endl;
     {   
         UFilterPicker::Metrics::MetricsSingleton::getInstance()
     };  
+    std::string mAlgorithm{"uFilterPicker-" 
+                         + UFilterPicker::Version::getVersionWithTag()};
     std::string mMetricsKeyName;
     std::chrono::microseconds mFilterGroupDelay;
     std::chrono::microseconds mFirstSampleTime{0};

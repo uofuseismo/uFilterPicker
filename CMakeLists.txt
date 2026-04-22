@@ -36,19 +36,18 @@ endif()
 find_package(spdlog REQUIRED)
 find_package(Boost COMPONENTS headers program_options REQUIRED)
 find_package(Threads REQUIRED)
-find_package(Catch2 3 REQUIRED)
 find_package(TBB COMPONENTS tbb REQUIRED)
 if (${BUILD_TRAINING})
    find_package(libpqxx REQUIRED)
    find_package(GeographicLib REQUIRED)
    find_package(HDF5 NAMES hdf5 hdf5_cpp COMPONENTS C CXX REQUIRED)
-endif()
-if (${BUILD_TRAINING})
    find_package(libmseed REQUIRED)
    FetchContent_Declare(libmseed 
                         GIT_REPOSITORY https://github.com/EarthScope/libmseed.git
                         GIT_TAG        v3.2.24)
-   
+endif()
+if (${BUILD_TESTS})
+   find_package(Catch2 3 REQUIRED)
 endif()
 
 FetchContent_Declare(uSignal
