@@ -1,7 +1,20 @@
+# About
+
+Computes initial picks from seismic streams using a Lomax-style filter picker.  The filter picker in short runs many short-term/long-term average filters 
+in frequency bands across a range of interest.  Streams are read from the [uDataPacketService](https://github.com/uofuseismo/uDataPacketService) and 
+corresponding picks are deposited into the [uFilterPickerProxy](https://github.com/uofuseismo/uFilterPickerProxy) for subsequent analysis (e.g., 
+refinement, classiffication, association etc.).
+
+<img width="451" height="221" alt="ufilterpicker drawio" src="https://github.com/user-attachments/assets/23a2af00-11d5-4526-b8cb-fcdebb153769" />
+
+# APIs
 
 To be able to import data packets
 
     git subtree add --prefix uDataPacketServiceAPI https://github.com/uofuseismo/uDataPacketServiceAPI.git main --squash
+
+To be able to export picks 
+
     git subtree add --prefix uFilterPickerProxyAPI https://github.com/uofuseismo/uFilterPickerProxyAPI.git main --squash
 
 # Conan
