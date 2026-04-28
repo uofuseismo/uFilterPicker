@@ -32,9 +32,11 @@ class uFilterPickerConan(ConanFile):
        self.requires("boost/1.89.0")
        self.requires("spdlog/1.17.0")
        self.requires("onetbb/2022.3.0")
+       self.requires("sqlite3/3.53.0")
+       self.requires("libpqxx/8.0.1")
 
    def build_requirements(self):
-       # test dependncies and build tools
+       # test dependencies and build tools
        self.test_requires("catch2/3.13.0")
 
    def layout(self):

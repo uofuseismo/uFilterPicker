@@ -156,7 +156,7 @@ public:
         }
         const auto endTime
             = Utilities::getEndTime<std::chrono::microseconds> (packet);
-std::cout << std::setprecision(16) << mIdentifierString << " " << startTime.count()*1.e-6 << " " << endTime.count()*1.e-6 << std::endl;
+        //std::cout << std::setprecision(16) << mIdentifierString << " " << startTime.count()*1.e-6 << " " << endTime.count()*1.e-6 << std::endl;
         if (endTime > now + mMaxFutureTime)
         {
             throw std::invalid_argument("Will not process future packets");

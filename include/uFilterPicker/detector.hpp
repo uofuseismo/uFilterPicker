@@ -41,6 +41,11 @@ public:
     [[nodiscard]] std::vector<double> apply(const std::vector<int> &x);
     /// @brief Resets the filters in case of a gap.
     void resetInitialConditions();
+    /// @brief Get the characteristic function at a given band.
+    /// @note This should be used after calling \c apply.
+    [[nodiscard]] std::vector<double> getCharacteristicFunction(size_t index) const;
+    /// @result The number of characteristic functions.
+    [[nodiscard]] size_t getNumberOfPipelines() const noexcept;
 
     /// @brief Creates the standard 100 Hz broadband detector.
     static std::unique_ptr<UFilterPicker::Detector> create100HzBroadband();

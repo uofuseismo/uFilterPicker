@@ -64,16 +64,18 @@ public:
         }
         mInitialized = true;
     }
+/*
     void transform(std::vector<double> *y) const
     {
         const auto x = mAverage->getInputReference();
         std::vector<double> xIn(x.size());
         std::copy(x.begin(), x.end(), xIn.data());
         constexpr bool isApply{false};
-        transform(xIn, y, isApply);
-    } 
-    void transform(const std::vector<double> &x, std::vector<double> *y,
-                   const bool isApply) const
+        transform(mPreviousX, y, isApply);
+    }
+*/
+    void transform(const std::vector<double> &x,
+                   std::vector<double> *y) const
     {
         const auto yAverage = mAverage->getOutputReference();
         const auto yAverage2 = mAverageInputSquared->getOutputReference();
@@ -89,8 +91,8 @@ public:
         int iStart{0};
         if (mExceededWindow < mWindowSize)
         {
-            if (isApply)
-            {
+            //if (isApply)
+            //{
                 mStartMask = 0;
                 for (int i = 0; i < static_cast<int> (y->size()); ++i)
                 {
@@ -106,10 +108,12 @@ public:
                 }
                 iStart = mStartMask;
                 //std::cout << iStart << " " << mExceededWindow << " " << mWindowSize << std::endl;
-            }
+            //}
         }
         else
         {
+            iStart = 0;
+/*
             // Could be trying to get old output
             if (!isApply)
             {
@@ -119,15 +123,18 @@ public:
             {
                 iStart = 0;
             }
+*/
         }
         // Compute Env(i) - E[Env(i)]/std(Env(i))
         // Note that, var(Env) = E[Env^2] - E[Env]^2
         for (int i = iStart; i < static_cast<int> (y->size()); ++i)
         {
-            auto numerator = x[i] - yAverage[i];
-            auto var = std::max(1.e-10,
-                                yAverage2[i] - yAverage[i]*yAverage[i]);
-            yPtr[i] = numerator/std::sqrt(mBesselCorrection*var);
+            const auto numerator = x[i] - yAverage[i];
+            const auto var = std::max(1.e-10,
+                                      yAverage2[i] - yAverage[i]*yAverage[i]);
+            const auto std = std::sqrt(mBesselCorrection*var);
+            
+            yPtr[i] = numerator/std;
         }
     }
     std::unique_ptr
@@ -137,6 +144,7 @@ public:
     std::unique_ptr
         <USignal::FilterImplementations::FiniteImpulseResponse<double>
     > mAverageInputSquared;
+    std::vector<double> mPreviousY;
     double mBesselCorrection{1};
     int mWindowSize{0};
     mutable int mExceededWindow{0};
@@ -185,8 +193,9 @@ std::vector<double> CharacteristicFunction::apply(const std::vector<double> &x)
                    [](const auto &xi){return xi*xi;});
     pImpl->mAverageInputSquared->setInput(std::move(xIn2));
     pImpl->mAverageInputSquared->apply();
-    constexpr bool isApply{true};
-    pImpl->transform(x, &y, isApply);
+    //constexpr bool isApply{true};
+    pImpl->transform(x, &y); //, isApply);
+    pImpl->mPreviousY = y;
 /*
     const auto yAverage = pImpl->mAverage->getOutputReference();
     const auto yAverage2 = pImpl->mAverageInputSquared->getOutputReference();
@@ -236,9 +245,7 @@ std::vector<double> CharacteristicFunction::getOutput() const
         throw std::runtime_error(
            "CharacteristicFunction filter not initialized");
     }   
-    std::vector<double> y;
-    pImpl->transform(&y);
-    return y;
+    return pImpl->mPreviousY;
 }
 
 /// Reset the initial conditions
@@ -249,6 +256,7 @@ void CharacteristicFunction::resetInitialConditions()
         throw std::runtime_error(
            "CharacteristicFunction filter not initialized");
     }
+    pImpl->mPreviousY.clear();
     pImpl->mAverage->resetInitialConditions();
     pImpl->mAverageInputSquared->resetInitialConditions();
     pImpl->mExceededWindow = 0;

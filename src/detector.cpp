@@ -1,6 +1,8 @@
 //#include <iostream>
+#include <cstddef>
 #include <cmath>
 #include <vector>
+#include <string>
 #include <chrono>
 #include <utility>
 #include <algorithm>
@@ -258,6 +260,30 @@ void Detector::resetInitialConditions()
 
 /// Destructor
 Detector::~Detector() = default;
+
+std::vector<double> 
+Detector::getCharacteristicFunction(const size_t index) const
+{
+    if (!isInitialized())
+    {   
+        throw std::runtime_error("Detector not initialized");
+    }   
+    if (index >= getNumberOfPipelines())
+    {
+        throw std::out_of_range(std::to_string(index)
+                              + " must be in range [0,"
+                              + std::to_string(getNumberOfPipelines() - 1)
+                              + "]");
+    }
+    return pImpl->mPipelines.at(index)->getStageOutput(
+        Pipeline::ProcessingStage::CharacteristicFunction);
+}
+
+/// The number of detectors
+size_t Detector::getNumberOfPipelines() const noexcept
+{
+    return pImpl->mPipelines.size();
+}
 
 std::unique_ptr<UFilterPicker::Detector>
     Detector::create100HzBroadband()

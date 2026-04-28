@@ -20,6 +20,7 @@ namespace UFilterPicker
 ///            license.
 class Pipeline
 {
+public:
     enum class ProcessingStage
     {
         Filter = 1,
