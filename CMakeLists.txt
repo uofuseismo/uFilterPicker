@@ -114,10 +114,12 @@ set(IMPORT_PROTO_SRC
     uDataPacketServiceAPI/v1/packet.proto
     uDataPacketServiceAPI/v1/subscribe_to_all_request.proto
     uDataPacketServiceAPI/v1/subscription_request.proto
-    uDataPacketServiceAPI/v1/broadcast.proto
+    uDataPacketServiceAPI/v1/broadcast.proto)
+set(EXPORT_PROTO_SRC
     uFilterPickerProxyAPI/v1/stream_identifier.proto
     uFilterPickerProxyAPI/v1/phase_hint.proto
     uFilterPickerProxyAPI/v1/pick.proto
+    uFilterPickerProxyAPI/v1/algorithm.proto
     )   
 set(LIBRARY_HEADER_FILES 
     include/uFilterPicker/characteristicFunction.hpp
@@ -134,7 +136,7 @@ set(LIBRARY_HEADER_FILES
     include/uFilterPicker/utilities.hpp
     include/uFilterPicker/version.hpp)
 
-add_library(libuFilterPicker STATIC ${LIBRARY_SRC} ${IMPORT_PROTO_SRC})
+add_library(libuFilterPicker STATIC ${LIBRARY_SRC} ${IMPORT_PROTO_SRC} ${EXPORT_PROTO_SRC})
 add_library(uFilterPicker::libuFilterPicker ALIAS libuFilterPicker)
 set_target_properties(libuFilterPicker PROPERTIES
                       OUTPUT_NAME uFilterPicker
@@ -291,6 +293,7 @@ if (PROJECT_IS_TOP_LEVEL AND ${BUILD_TESTS})
                   uFilterPickerProxyAPI/v1/stream_identifier.proto
                   uFilterPickerProxyAPI/v1/phase_hint.proto
                   uFilterPickerProxyAPI/v1/pick.proto
+                  uFilterPickerProxyAPI/v1/algorithm.proto
    )
    set_target_properties(unitTests PROPERTIES
                          CXX_STANDARD 23
