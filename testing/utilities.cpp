@@ -169,12 +169,19 @@ TEST_CASE("UFilterPicker::Utilities", "[convertIdentifier]")
 TEST_CASE("UFilterPicker::Utilities", "[toPPick]")
 {
     constexpr std::chrono::microseconds pickTime{10};
-    const std::string algorithm{"uFilterPicker12"};
+    const std::string algorithmName{"uFilterPicker12"};
+    const std::string version{"1.2.3"};
+    const std::string tag{"abcefg8"};
     
     const std::string network{"UU"};
     const std::string station{"HVU"};
     const std::string channel{"HHZ"};
     const std::string locationCode{"01"};
+
+    UFilterPickerProxyAPI::V1::Algorithm algorithm; 
+    algorithm.set_name(algorithmName);
+    algorithm.set_version(version);
+    algorithm.set_tag(tag);
 
     UFilterPickerProxyAPI::V1::StreamIdentifier identifier;
     identifier.set_network(network);
@@ -191,8 +198,9 @@ TEST_CASE("UFilterPicker::Utilities", "[toPPick]")
     REQUIRE(pPick.stream_identifier().station() == station);
     REQUIRE(pPick.stream_identifier().channel() == channel);
     REQUIRE(pPick.stream_identifier().location_code() == locationCode);
-    REQUIRE(pPick.algorithm() == algorithm);
- 
+    REQUIRE(pPick.algorithm().name() == algorithmName);
+    REQUIRE(pPick.algorithm().version() == version);
+    REQUIRE(pPick.algorithm().tag() == tag);
 }
 
 TEMPLATE_TEST_CASE("UFilterPicker::Utilities", "[unpackData]",

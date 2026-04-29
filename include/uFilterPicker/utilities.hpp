@@ -12,6 +12,7 @@ namespace UDataPacketServiceAPI::V1
 }
 namespace UFilterPickerProxyAPI::V1
 {
+ class Algorithm;
  class Pick;
  class StreamIdentifier;
 }
@@ -79,7 +80,7 @@ leftTrim(const std::chrono::microseconds &desiredStartTime,
 UFilterPickerProxyAPI::V1::Pick 
     toPPick(const std::chrono::microseconds &pickTime,
             const UFilterPickerProxyAPI::V1::StreamIdentifier &identifier,
-            const std::string &algorithm);
+            const UFilterPickerProxyAPI::V1::Algorithm &algorithm);
 [[nodiscard]]
 UFilterPickerProxyAPI::V1::StreamIdentifier convertIdentifier(
     const UDataPacketServiceAPI::V1::StreamIdentifier &identifierIn);

@@ -23,6 +23,18 @@
 
 using namespace UFilterPicker;
 
+namespace
+{
+static UFilterPickerProxyAPI::V1::Algorithm createAlgorithm()
+{
+    UFilterPickerProxyAPI::V1::Algorithm algorithm;
+    algorithm.set_name("uFilterPicker");
+    algorithm.set_version(UFilterPicker::Version::getVersion());
+    algorithm.set_tag(UFilterPicker::Version::getTag());
+    return algorithm;
+}
+}
+
 class Picker::PickerImpl
 {
 public:
@@ -273,7 +285,7 @@ public:
             {
                 for (const auto &pick : picks)
                 {
-                    auto p2 = Utilities::toPPick(pick, mPickIdentifier, "uFilterPicker");
+                    auto p2 = Utilities::toPPick(pick, mPickIdentifier, mAlgorithm);
                 }
 std::cout << "Made a pick" << std::endl;
                 auto nPicks = static_cast<int> (picks.size());
@@ -293,8 +305,7 @@ std::cout << "Made a pick" << std::endl;
     {   
         UFilterPicker::Metrics::MetricsSingleton::getInstance()
     };  
-    std::string mAlgorithm{"uFilterPicker-" 
-                         + UFilterPicker::Version::getVersionWithTag()};
+    UFilterPickerProxyAPI::V1::Algorithm mAlgorithm{::createAlgorithm()};
     std::string mMetricsKeyName;
     std::chrono::microseconds mFilterGroupDelay;
     std::chrono::microseconds mFirstSampleTime{0};
