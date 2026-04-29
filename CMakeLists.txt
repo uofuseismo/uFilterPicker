@@ -266,7 +266,8 @@ protobuf_generate(TARGET uFilterPicker
 
 if (${BUILD_TRAINING})
    add_executable(gatherWaveforms
-                  training/gatherWaveforms.cpp)   
+                  training/gatherWaveforms.cpp
+                  training/featuresDatabase.cpp)
    set_target_properties(gatherWaveforms PROPERTIES
                          CXX_STANDARD 23
                          CXX_STANDARD_REQUIRED YES
@@ -275,10 +276,10 @@ if (${BUILD_TRAINING})
                          PRIVATE uFilterPicker::libuFilterPicker #IPP::ippcore IPP::ipps IPP::ippvm
                                  spdlog::spdlog_header_only
                                  mseed::mseed libpqxx::pqxx GeographicLib::GeographicLib
-                                 ${HDF5_CXX_LIBRARIES} ${HDF5_C_LIBRARIES})
-   target_include_directories(gatherWaveforms
-                              PRIVATE $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
-                              PRIVATE $<BUILD_INTERFACE:${HDF5_INCLUDE_DIRS}>)
+                                 SQLite::SQLite3) #${HDF5_CXX_LIBRARIES} ${HDF5_C_LIBRARIES})
+   #target_include_directories(gatherWaveforms
+   #                           PRIVATE $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+   #                           PRIVATE $<BUILD_INTERFACE:${HDF5_INCLUDE_DIRS}>)
 endif()
 
 if (PROJECT_IS_TOP_LEVEL AND ${BUILD_TESTS})
