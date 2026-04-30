@@ -6,6 +6,7 @@
 #include <cmath>
 #include <limits>
 #include <fstream>
+#include <set>
 #include <string>
 #include <vector>
 #include <memory>
@@ -503,7 +504,7 @@ struct ProgramOptions parseIniFile(const std::filesystem::path &iniFile)
     aqmsOptions.password = propertyTree.get<std::string> ("AQMS.password");
     aqmsOptions.host = propertyTree.get<std::string> ("AQMS.host", "localhost");
     aqmsOptions.name = propertyTree.get<std::string> ("AQMS.databaseName");
-    aqmsOptions.port = propertyTree.get<uint16_t> ("AQMS.port", 5432);
+    aqmsOptions.port = propertyTree.get<uint16_t> ("AQMS.port", aqmsOptions.port);
     options.databaseOptions = aqmsOptions; 
 
     // Output
@@ -537,6 +538,8 @@ struct ProgramOptions parseIniFile(const std::filesystem::path &iniFile)
         throw std::invalid_argument("Burn in factor must be positive");
     }
 
+    std::set<std::string> streamNames;
+    std::vector<Stream> streams;
     for (uint16_t i = 1; i <= std::numeric_limits<uint16_t>::max(); ++i)
     {
         auto keyName = "UFilterPicker.stream_"
@@ -567,12 +570,29 @@ struct ProgramOptions parseIniFile(const std::filesystem::path &iniFile)
             auto network = splitSensor.at(0);
             auto station = splitSensor.at(1);
             auto channel = splitSensor.at(2);
+            std::string locationCode = "--";
+            if (splitSensor.size() > 4)
+            {
+                locationCode = splitSensor.at(3);
+            }
+            auto streamName = network + "."
+                            + station + "."
+                            + channel + "."
+                            + locationCode;
+            if (streamNames.contains(streamName))
+            {
+                throw std::invalid_argument("Duplciate stream: " + streamName);
+            }
+            streamNames.insert(streamName);
+            Stream stream{network, station, channel, locationCode};
+            streams.push_back(stream);
         }
         else
         {
             break;
         }
     }
+    options.streamList = streams;
 
     return options;
 }

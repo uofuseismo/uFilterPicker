@@ -1,3 +1,4 @@
+#include <iostream>
 #include <string>
 #include <stdexcept>
 #include <filesystem>
@@ -8,6 +9,7 @@
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <sqlite3.h>
+#include "uFilterPicker/version.hpp"
 #include "featuresDatabase.hpp"
 
 using namespace UFilterPicker::Training;
@@ -271,9 +273,56 @@ CREATE TABLE event(identifier TEXT PRIMARY KEY,
         {
             auto message = std::string{errorMessage}; 
             sqlite3_free(errorMessage); 
-            throw std::runtime_error("Failed to create phasehint table because "
+            throw std::runtime_error("Failed to create event table because "
                                    + message);
         }
+
+        const std::string versionSchema{
+R"""(
+CREATE TABLE version(number TEXT, tag TEXT);
+)"""
+        };
+        returnCode = sqlite3_exec(mDatabaseHandle,
+                                  versionSchema.c_str(),
+                                  nullptr,
+                                  nullptr, 
+                                  &errorMessage);
+        if (returnCode != SQLITE_OK)
+        {   
+            auto message = std::string{errorMessage}; 
+            sqlite3_free(errorMessage); 
+            throw std::runtime_error("Failed to create version table because "
+                                   + message);
+        }
+        const std::string insertVersion{
+R"""(
+INSERT INTO version(number, tag) VALUES(?, ?);
+)"""
+        };
+        sqlite3_stmt *insertVersionStatement{nullptr};
+        returnCode = sqlite3_prepare_v2(mDatabaseHandle,
+                                        insertVersion.c_str(),
+                                        -1,
+                                        &insertVersionStatement,
+                                        nullptr);
+        if (returnCode != SQLITE_OK)
+        {    
+            sqlite3_finalize(insertVersionStatement);
+            throw std::runtime_error("Failed to prepare insert version statement");
+        }
+        ::bindText(UFilterPicker::Version::getVersion(),  1, "number",
+                   "version", insertVersionStatement);
+        ::bindText(UFilterPicker::Version::getTag(),      2, "tag",
+                   "version", insertVersionStatement);
+        returnCode = sqlite3_step(insertVersionStatement);
+        if (returnCode != SQLITE_DONE)
+        {
+            sqlite3_finalize(insertVersionStatement);
+            throw std::runtime_error(
+               "Failed to insert number/tag into version table");
+        }
+        sqlite3_finalize(insertVersionStatement); 
+
 
         mTablesInitialized = true;
     }
