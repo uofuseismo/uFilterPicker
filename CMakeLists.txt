@@ -276,6 +276,7 @@ if (${BUILD_TRAINING})
                          CXX_EXTENSIONS NO)
    target_link_libraries(gatherWaveforms
                          PRIVATE uFilterPicker::libuFilterPicker #IPP::ippcore IPP::ipps IPP::ippvm
+                                 Boost::program_options
                                  spdlog::spdlog_header_only
                                  mseed::mseed libpqxx::pqxx GeographicLib::GeographicLib
                                  SQLite::SQLite3) #${HDF5_CXX_LIBRARIES} ${HDF5_C_LIBRARIES})
