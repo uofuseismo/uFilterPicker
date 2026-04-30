@@ -193,6 +193,17 @@ int main(int argc, char *argv[])
 
 
     ::ProgramOptions programOptions;
+    try
+    {
+        programOptions = parseIniFile(iniFile);
+    }
+    catch (const std::exception &e)
+    {
+        SPDLOG_LOGGER_CRITICAL(logger,
+                               "Failed to parse ini file because {}",
+                               std::string {e.what()});
+        return EXIT_FAILURE;
+    }   
 
     // Initialize the features file
     std::unique_ptr<UFilterPicker::Training::FeaturesDatabase>
@@ -214,7 +225,6 @@ int main(int argc, char *argv[])
                                std::string {e.what()});
         return EXIT_FAILURE;
     }
-return EXIT_SUCCESS; 
 
     // Initialize the AQMS connection string
     auto connectionString
@@ -435,7 +445,7 @@ return EXIT_SUCCESS;
                 }
                 std::cout << cfValues.back() << std::endl;
             }
-//break;
+break;
         } // Loop on picks
     }
     return EXIT_SUCCESS;
