@@ -119,6 +119,7 @@ struct DatabaseOptions
 struct ProgramOptions
 {
     std::string applicationName{APPLICATION_NAME};
+    std::string authority{"uu"};
     std::filesystem::path featuresFile{"features.sqlite3"};
     DatabaseOptions databaseOptions;
     std::vector<Stream> streamList{ Stream{"UU", "DCU", "EHZ", "01"} };
@@ -285,6 +286,29 @@ int main(int argc, char *argv[])
         // Get the waveforms
         for (const auto &event : events)
         {
+            // Add event to output database
+            UFilterPicker::Training::EventRow eventRow;
+            eventRow.identifier = programOptions.authority
+                                + std::to_string(event.identifier);
+            eventRow.eventType = event.eventType;
+            eventRow.latitude = event.origin.latitude;
+            eventRow.longitude = event.origin.longitude;
+            eventRow.depth = event.origin.depth;
+            eventRow.eventTime = event.origin.time;
+            eventRow.preferredMagnitudeType = event.magnitude.type;
+            eventRow.preferredMagnitude = event.magnitude.value;
+            try
+            {
+                featuresDatabase->write(eventRow);
+            }
+            catch (const std::exception &e)
+            {
+                SPDLOG_LOGGER_CRITICAL(logger,
+                                       "Failed to write event because: {}",
+                                       std::string {e.what()});
+                return EXIT_FAILURE;
+            }
+            
             std::pair<std::chrono::microseconds, double> estimatePickTimeAndValue
             {
                 std::chrono::microseconds {0},
@@ -426,6 +450,34 @@ int main(int argc, char *argv[])
             if (estimatePickTimeAndValue.second >
                 std::numeric_limits<double>::lowest() && !gapDetected)
             {
+                UFilterPicker::Training::Row row;
+                UFilterPicker::Training::Stream sRow;
+                sRow.network = stream.network;
+                sRow.station = stream.station;
+                sRow.channel = stream.channel;
+                sRow.locationCode = stream.locationCode;
+                sRow.latitude = event.origin.picks[0].channelData.latitude;
+                sRow.longitude = event.origin.picks[0].channelData.longitude;
+                sRow.elevation = event.origin.picks[0].channelData.elevation;
+                row.stream = sRow;
+                //row.network = stream.network;
+                //row.station = stream.station;
+                //row.channel = stream.channel;
+                //row.locationCode = stream.locationCode;
+                row.eventIdentifier = eventRow.identifier;
+                row.distance = event.origin.picks.at(0).distance*1.e3; // KM
+                row.backAzimuth = event.origin.picks[0].backAzimuth;
+                row.analystQuality = event.origin.picks[0].quality;
+                row.truePickTime = truePickTime;
+/*
+    std::vector<double> cfValues;
+*/
+                row.estimatePickTime = estimatePickTimeAndValue.first; 
+                row.cfValueAtPick = estimatePickTimeAndValue.second;
+                row.nominalSamplingRate = event.origin.picks[0].channelData.samplingRate;
+
+featuresDatabase->write(row);
+
                 auto residual = (estimatePickTimeAndValue.first.count() - truePickTime.count())*1.e-6;
                 std::cout << event.identifier << ","
                           << event.origin.latitude << ","
@@ -602,6 +654,7 @@ struct ProgramOptions parseIniFile(const std::filesystem::path &iniFile)
             break;
         }
     }
+    if (streams.empty()){throw std::invalid_argument("No streams");}
     options.streamList = streams;
 
     return options;

@@ -21,20 +21,36 @@ struct EventRow
     double preferredMagnitude;
 };
 
-struct Row
+struct Stream
 {
     std::string network;
     std::string channel;
     std::string station;
     std::string locationCode;
-    std::string eventIdentifier;
+    double latitude;
+    double longitude;
+    double elevation;
+};
+
+struct Row
+{
+    Stream stream;
+/*
+    std::string network;
+    std::string channel;
+    std::string station;
+    std::string locationCode;
+*/
+    std::string eventIdentifier;  // Key for event row
     double distance;              // Source receiver distance
-    double backAzimuth;           // receiver-to-source azimuth
-    std::vector<double> cfValues;
-    std::chrono::microseconds estimatePickTime;
+    double backAzimuth;           // Receiver-to-source azimuth
+    int analystQuality;           // 0 best - 4 worst
     std::chrono::microseconds truePickTime;
+    std::chrono::microseconds estimatePickTime;
     double cfValueAtPick;
     double nominalSamplingRate;
+    //std::vector<double> cfValues; 
+    bool reviewed;
 };
  
 /// @class FeaturesDatabase
@@ -57,6 +73,7 @@ public:
                      const std::filesystem::path &fileName,
                      Mode mode);
 
+    void write(const EventRow &row);
     void write(const Row &row);
 
     ~FeaturesDatabase();

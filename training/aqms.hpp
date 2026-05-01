@@ -96,6 +96,16 @@ int qualityToQuality(const double quality)
     return 4;
 }
 
+[[nodiscard]] 
+bool wasPickReviewed(const std::string &flag)
+{
+    if (flag == "h" || flag == "H" ||
+        flag == "f" || flag == "F")
+    {
+        return true;
+    }
+    return false;
+}
 }
  
 namespace UFilterPicker::Training
@@ -147,8 +157,9 @@ struct Pick
     std::string phase;
     std::chrono::microseconds time;
     double distance;
-    double azimuth;
+    double backAzimuth;
     int quality;
+    bool reviewed;
 };
 
 struct Origin
@@ -381,7 +392,7 @@ R"""(
 SELECT event.evid, event.etype,
    TrueTime.getEpoch(origin.datetime, 'UNIX'), origin.lat, origin.lon, origin.depth,
    netmag.magnitude, netmag.magtype,
-   arrival.iphase, TrueTime.getEpoch(arrival.datetime, 'UNIX'), arrival.quality
+   arrival.iphase, TrueTime.getEpoch(arrival.datetime, 'UNIX'), arrival.quality, arrival.rflag
 FROM event
   INNER JOIN origin ON event.prefor = origin.orid
     INNER JOIN netmag ON event.prefmag = netmag.magid 
@@ -395,9 +406,9 @@ WHERE (event.etype = 'eq' OR event.etype = 'qb') AND netmag.magnitude > -9.99 AN
 )"""};
     if (mLogger)
     {
-        SPDLOG_LOGGER_INFO(mLogger,
-                           "Beginning P pick query for {}.{}.{}.{} with time > {}",
-                           network, station, channel, locationCode, iOnTime);
+        SPDLOG_LOGGER_DEBUG(mLogger,
+            "Beginning P pick query for {}.{}.{}.{} with time > {}",
+            network, station, channel, locationCode, iOnTime);
     }
     pqxx::params queryParameters{iOnTime, network, station, channel, locationCode};
     pqxx::work transaction(*mConnection);
@@ -419,6 +430,7 @@ WHERE (event.etype = 'eq' OR event.etype = 'qb') AND netmag.magnitude > -9.99 AN
             = std::chrono::microseconds
               {static_cast<int64_t> (std::round(row[9].as<double> ()*1.e6))};
         auto quality = ::qualityToQuality(row[10].as<double> ());
+        auto pickReviewed = ::wasPickReviewed(row[11].as<std::string> ());
 
         double distanceInMeters{0};
         double azimuth{0};
@@ -428,14 +440,18 @@ WHERE (event.etype = 'eq' OR event.etype = 'qb') AND netmag.magnitude > -9.99 AN
                          distanceInMeters, azimuth, backAzimuth);
         // Convert to back azimuth while putting in range [0, 360)
         backAzimuth = backAzimuth + 180;
+        if (backAzimuth < 0){backAzimuth = backAzimuth + 360;}
+        if (backAzimuth > 360){backAzimuth = backAzimuth - 360;}
 
         Magnitude magnitude{magnitudeType, magnitudeValue};
         Pick pick{channelData, phase, pickTime,
-                  distanceInMeters, backAzimuth, quality};
+                  distanceInMeters, backAzimuth, quality, pickReviewed};
         Origin origin{originTime,
                       eventLatitude, eventLongitude, eventDepth,
                       std::vector<Pick> {pick}};
-        Event event{std::move(origin), std::move(magnitude), eventIdentifier, eventType};
+        Event event{std::move(origin), std::move(magnitude),
+                    eventIdentifier, //authority + std::to_string(eventIdentifier),
+                    eventType};
 
         events.push_back(std::move(event));
     }
@@ -632,7 +648,7 @@ SELECT encode(wave.get_waveform_blob($1, 0, $2, 0, 4070908800), 'hex')
             if (binaryData.empty())
             {
                 throw std::runtime_error("No data found for "
-                                        + network + "." + station
+                                        + network + "." + station + "."
                                         + channel + "." + locationCode
                                         + " (event "
                                         + std::to_string(eventIdentifier)
