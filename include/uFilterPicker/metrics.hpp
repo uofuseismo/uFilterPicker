@@ -11,6 +11,7 @@ namespace UDataPacketServiceAPI::V1
 namespace UFilterPicker::Metrics
 {
 
+/// @class MetricsSingleton metrics.hpp
 /// @brief Metrics singleton to be used in instrumented library
 ///        classes.
 /// @copyright Ben Baker (University of Utah) distributed under the
