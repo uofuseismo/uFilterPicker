@@ -1,4 +1,4 @@
-# Purpose: Creates the container for running the uFilterPIcker software in a
+# Purpose: Creates the container for running the uFilterPicker software in a
 #          Ubuntu container.
 # Usage: podman build -t ufilterpicker:latest -f Dockerfile.u24
 #        buildah bud -t ufilterpicker:latest -f Dockerfile.u24
