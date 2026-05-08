@@ -1,4 +1,5 @@
 version.hpp
+*swp
 *ini
 *sqlite3
 CMakeUserPresets.json

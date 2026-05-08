@@ -21,9 +21,9 @@
 #include "uDataPacketServiceAPI/v1/packet.pb.h"
 #include "uDataPacketServiceAPI/v1/stream_identifier.pb.h"
 #include "uDataPacketServiceAPI/v1/data_type.pb.h"
-#include "uFilterPickerProxyAPI/v1/pick.pb.h"
-#include "uFilterPickerProxyAPI/v1/phase_hint.pb.h"
-#include "uFilterPickerProxyAPI/v1/stream_identifier.pb.h"
+#include "uFilterPickerMessageStoreAPI/v1/pick.pb.h"
+#include "uFilterPickerMessageStoreAPI/v1/phase_hint.pb.h"
+#include "uFilterPickerMessageStoreAPI/v1/stream_identifier.pb.h"
 
 namespace
 {
@@ -378,27 +378,29 @@ int UFilterPicker::Utilities::getGapSizeInSamples(
     return sign*gapSamples; 
 }
 
-UFilterPickerProxyAPI::V1::Pick 
+UFilterPickerMessageStoreAPI::V1::Pick 
 UFilterPicker::Utilities::toPPick(
     const std::chrono::microseconds &pickTime,
-    const UFilterPickerProxyAPI::V1::StreamIdentifier &identifierIn,
-    const UFilterPickerProxyAPI::V1::Algorithm &algorithm)
+    const UFilterPickerMessageStoreAPI::V1::StreamIdentifier &identifierIn,
+    const UFilterPickerMessageStoreAPI::V1::Algorithm &algorithm)
 {
-    UFilterPickerProxyAPI::V1::Pick result;
+    UFilterPickerMessageStoreAPI::V1::Pick result;
     *result.mutable_stream_identifier() = identifierIn;
     *result.mutable_time()
-        = google::protobuf::util::TimeUtil::MicrosecondsToTimestamp(pickTime.count());
-    result.set_phase_hint(UFilterPickerProxyAPI::V1::PhaseHint::PHASE_HINT_P);
+        = google::protobuf::util::TimeUtil::MicrosecondsToTimestamp(
+             pickTime.count());
+    result.set_phase_hint(
+          UFilterPickerMessageStoreAPI::V1::PhaseHint::PHASE_HINT_P);
     *result.mutable_algorithm() = algorithm;
     return result; 
 }
 
-UFilterPickerProxyAPI::V1::StreamIdentifier 
+UFilterPickerMessageStoreAPI::V1::StreamIdentifier 
 UFilterPicker::Utilities::convertIdentifier(
     const UDataPacketServiceAPI::V1::StreamIdentifier &identifierIn)
 {
     /// Identifier
-    UFilterPickerProxyAPI::V1::StreamIdentifier identifier;
+    UFilterPickerMessageStoreAPI::V1::StreamIdentifier identifier;
     auto network = identifierIn.network();
     if (network.empty()){throw std::invalid_argument("No network");}
     std::transform(network.begin(), network.end(), network.begin(), ::toupper);

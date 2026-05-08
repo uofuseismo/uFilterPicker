@@ -116,10 +116,10 @@ set(IMPORT_PROTO_SRC
     uDataPacketServiceAPI/v1/subscription_request.proto
     uDataPacketServiceAPI/v1/broadcast.proto)
 set(EXPORT_PROTO_SRC
-    uFilterPickerProxyAPI/v1/stream_identifier.proto
-    uFilterPickerProxyAPI/v1/phase_hint.proto
-    uFilterPickerProxyAPI/v1/pick.proto
-    uFilterPickerProxyAPI/v1/algorithm.proto
+    uFilterPickerMessageStoreAPI/v1/stream_identifier.proto
+    uFilterPickerMessageStoreAPI/v1/phase_hint.proto
+    uFilterPickerMessageStoreAPI/v1/pick.proto
+    uFilterPickerMessageStoreAPI/v1/algorithm.proto
     )   
 set(LIBRARY_HEADER_FILES 
     include/uFilterPicker/characteristicFunction.hpp
@@ -248,24 +248,6 @@ protobuf_generate(TARGET uFilterPicker
 
 
 
-#add_executable(pickProxy src/grpc/pickProxy.cpp)
-#set_target_properties(pickProxy PROPERTIES
-#                      CXX_STANDARD 20
-#                      CXX_STANDARD_REQUIRED YES 
-#                      CXX_EXTENSIONS NO) 
-#target_link_libraries(pickProxy
-#                      PRIVATE uFilterPicker::libuFilterPicker
-#                              spdlog::spdlog_header_only
-#                              gRPC::grpc
-#                              gRPC::grpc++
-#                              gRPC::grpcpp_otel_plugin
-#                              opentelemetry-cpp::metrics
-#                              Boost::program_options
-#                              TBB::tbb)
-#target_include_directories(pickProxy
-#                           PRIVATE $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
-#                           PRIVATE $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>)
-
 if (${BUILD_TRAINING})
    add_executable(gatherWaveforms
                   training/gatherWaveforms.cpp
@@ -291,10 +273,10 @@ if (PROJECT_IS_TOP_LEVEL AND ${BUILD_TESTS})
                   testing/picker.cpp
                   testing/grpc.cpp
                   uDataPacketServiceAPI/v1/packet.proto
-                  uFilterPickerProxyAPI/v1/stream_identifier.proto
-                  uFilterPickerProxyAPI/v1/phase_hint.proto
-                  uFilterPickerProxyAPI/v1/pick.proto
-                  uFilterPickerProxyAPI/v1/algorithm.proto
+                  uFilterPickerMessageStoreAPI/v1/stream_identifier.proto
+                  uFilterPickerMessageStoreAPI/v1/phase_hint.proto
+                  uFilterPickerMessageStoreAPI/v1/pick.proto
+                  uFilterPickerMessageStoreAPI/v1/algorithm.proto
    )
    set_target_properties(unitTests PROPERTIES
                          CXX_STANDARD 23

@@ -16,9 +16,9 @@
 #include <uDataPacketServiceAPI/v1/packet.pb.h>
 #include <uDataPacketServiceAPI/v1/data_type.pb.h>
 #include <uDataPacketServiceAPI/v1/stream_identifier.pb.h>
-#include <uFilterPickerProxyAPI/v1/pick.pb.h>
-#include <uFilterPickerProxyAPI/v1/phase_hint.pb.h>
-#include <uFilterPickerProxyAPI/v1/stream_identifier.pb.h>
+#include <uFilterPickerMessageStoreAPI/v1/pick.pb.h>
+#include <uFilterPickerMessageStoreAPI/v1/phase_hint.pb.h>
+#include <uFilterPickerMessageStoreAPI/v1/stream_identifier.pb.h>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 //#include <catch2/catch_approx.hpp>
@@ -178,12 +178,12 @@ TEST_CASE("UFilterPicker::Utilities", "[toPPick]")
     const std::string channel{"HHZ"};
     const std::string locationCode{"01"};
 
-    UFilterPickerProxyAPI::V1::Algorithm algorithm; 
+    UFilterPickerMessageStoreAPI::V1::Algorithm algorithm; 
     algorithm.set_name(algorithmName);
     algorithm.set_version(version);
     algorithm.set_tag(tag);
 
-    UFilterPickerProxyAPI::V1::StreamIdentifier identifier;
+    UFilterPickerMessageStoreAPI::V1::StreamIdentifier identifier;
     identifier.set_network(network);
     identifier.set_station(station);
     identifier.set_channel(channel);
@@ -193,7 +193,8 @@ TEST_CASE("UFilterPicker::Utilities", "[toPPick]")
     const auto pickTimeBack
         = google::protobuf::util::TimeUtil::TimestampToMicroseconds(pPick.time());
     REQUIRE(pickTimeBack == pickTime.count());
-    REQUIRE(pPick.phase_hint() == UFilterPickerProxyAPI::V1::PhaseHint::PHASE_HINT_P);
+    REQUIRE(pPick.phase_hint() ==
+            UFilterPickerMessageStoreAPI::V1::PhaseHint::PHASE_HINT_P);
     REQUIRE(pPick.stream_identifier().network() == network);
     REQUIRE(pPick.stream_identifier().station() == station);
     REQUIRE(pPick.stream_identifier().channel() == channel);
