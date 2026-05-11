@@ -10,8 +10,8 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <uDataPacketServiceAPI/v1/stream_identifier.pb.h>
 #include <uDataPacketServiceAPI/v1/packet.pb.h>
-#include <uFilterPickerMessageStoreAPI/v1/pick.pb.h>
-#include <uFilterPickerMessageStoreAPI/v1/stream_identifier.pb.h>
+#include <uFilterPickerPickBrokerAPI/v1/pick.pb.h>
+#include <uFilterPickerPickBrokerAPI/v1/stream_identifier.pb.h>
 #include <spdlog/logger.h>
 #include "uFilterPicker/picker.hpp"
 #include "uFilterPicker/pickerOptions.hpp"
@@ -25,9 +25,9 @@ using namespace UFilterPicker;
 
 namespace
 {
-static UFilterPickerMessageStoreAPI::V1::Algorithm createAlgorithm()
+static UFilterPickerPickBrokerAPI::V1::Algorithm createAlgorithm()
 {
-    UFilterPickerMessageStoreAPI::V1::Algorithm algorithm;
+    UFilterPickerPickBrokerAPI::V1::Algorithm algorithm;
     algorithm.set_name("uFilterPicker");
     algorithm.set_version(UFilterPicker::Version::getVersion());
     algorithm.set_tag(UFilterPicker::Version::getTag());
@@ -296,7 +296,7 @@ std::cout << "Made a pick" << std::endl;
     }
     PickerOptions mOptions;
     UDataPacketServiceAPI::V1::StreamIdentifier mIdentifier;
-    UFilterPickerMessageStoreAPI::V1::StreamIdentifier mPickIdentifier;
+    UFilterPickerPickBrokerAPI::V1::StreamIdentifier mPickIdentifier;
     std::string mIdentifierString;
     std::unique_ptr<Detector> mDetector;
     std::unique_ptr<ThresholdTrigger> mTrigger;
@@ -305,7 +305,7 @@ std::cout << "Made a pick" << std::endl;
     {   
         UFilterPicker::Metrics::MetricsSingleton::getInstance()
     };  
-    UFilterPickerMessageStoreAPI::V1::Algorithm mAlgorithm{::createAlgorithm()};
+    UFilterPickerPickBrokerAPI::V1::Algorithm mAlgorithm{::createAlgorithm()};
     std::string mMetricsKeyName;
     std::chrono::microseconds mFilterGroupDelay;
     std::chrono::microseconds mFirstSampleTime{0};
