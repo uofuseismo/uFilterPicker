@@ -15,7 +15,7 @@ To be able to import data packets
 
 To be able to export picks 
 
-    git subtree add --prefix uFilterPickerMessageStoreAPI https://github.com/uofuseismo/uFilterPickerMessageStoreAPI.git main --squash
+    git subtree add --prefix uFilterPickerPickBrokerAPI https://github.com/uofuseismo/uFilterPickerPickBrokerAPI.git main --squash
 
 # Conan
 
