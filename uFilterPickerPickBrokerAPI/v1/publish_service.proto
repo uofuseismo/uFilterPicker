@@ -1,0 +1,17 @@
+edition = "2023";
+
+package UFilterPickerPickBrokerAPI.V1;
+
+import "uFilterPickerPickBrokerAPI/v1/pick.proto";
+import "uFilterPickerPickBrokerAPI/v1/publish_response.proto";
+
+/*!
+ * Modules running the uFilterPicker send their picks to this service.
+ */
+service PublishService {
+    /*! 
+     * The producer sends its picks to this end point.
+     * When finished returns of summary of picks sent.
+     */
+    rpc Publish(stream Pick) returns(PublishResponse) {}; 
+}
