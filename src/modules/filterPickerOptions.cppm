@@ -27,6 +27,7 @@ module;
 #include <boost/property_tree/ini_parser.hpp>
 #include <uDataPacketServiceAPI/v1/stream_identifier.pb.h>
 #include "uFilterPicker/subscriberOptions.hpp"
+#include "uFilterPicker/publisherOptions.hpp"
 #include "uFilterPicker/grpcClientOptions.hpp"
 #include "uFilterPicker/pickerOptions.hpp"
 #include "uFilterPicker/utilities.hpp"
@@ -185,6 +186,7 @@ struct ProgramOptions
 {
     //UFilterPicker::GRPCClientOptions grpcClientOptions;
     UFilterPicker::SubscriberOptions packetSubscriberOptions;
+    UFilterPicker::PublisherOptions pickPublisherOptions;
     UFilterPicker::PickerOptions pickerOptions;
     //NOLINTBEGIN(misc-include-cleaner)
     UFilterPicker::OTelOptions::HTTPMetrics otelHTTPMetricsOptions;
@@ -386,12 +388,21 @@ ProgramOptions parseIniFile(const std::filesystem::path &iniFile)
         }
     }
 
-
+    // Publisher options
+    auto grpcPickClientOptions
+        = ::getGRPCClientOptions(propertyTree, "PickPublisher");
+    options.pickPublisherOptions.setGRPCOptions(grpcPickClientOptions);
+    auto pickPublisherQueueSize
+        = options.pickPublisherOptions.getMaximumQueueSize();
+    pickPublisherQueueSize
+        = propertyTree.get<int> ("PickPublisher.queueSize",
+                                 pickPublisherQueueSize); 
+    options.pickPublisherOptions.setMaximumQueueSize(pickPublisherQueueSize);
 
     // GRPC client options
-    auto grpcClientOptions
-        = ::getGRPCClientOptions(propertyTree, "GRPCClient");
-    options.packetSubscriberOptions.setGRPCOptions(grpcClientOptions);
+    auto grpcPacketClientOptions
+        = ::getGRPCClientOptions(propertyTree, "PacketSubscriber");
+    options.packetSubscriberOptions.setGRPCOptions(grpcPacketClientOptions);
     options.packetSubscriberOptions.setIdentifier(options.applicationName);
 
     // Get the streams to process

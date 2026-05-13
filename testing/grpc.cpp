@@ -8,6 +8,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "uFilterPicker/grpcClientOptions.hpp"
 #include "uFilterPicker/subscriberOptions.hpp"
+#include "uFilterPicker/publisherOptions.hpp"
 #include "uDataPacketServiceAPI/v1/stream_identifier.pb.h"
 
 TEST_CASE("UFilterPicker", "[grpcClientOptions]")
@@ -138,4 +139,35 @@ TEST_CASE("UFilterPicker", "[SubscriberOptions]")
 
     streamIdentifiers.push_back(id1);
     REQUIRE_THROWS(options.setStreamIdentifiers(streamIdentifiers));
+}
+
+TEST_CASE("UFilterPicker", "[PublisherOptions]")
+{
+    SECTION("Default")
+    {
+        const UFilterPicker::PublisherOptions options; 
+        REQUIRE(!options.hasGRPCOptions());
+        REQUIRE(options.getMaximumQueueSize() == 2048);
+    }
+    SECTION("Options")
+    {
+        const std::string host{"cool.host.org"};
+        const uint16_t port{23456};
+        constexpr int maxQueueSize{933};
+
+        UFilterPicker::GRPCClientOptions grpcOptions;
+        grpcOptions.setHost(host);
+        grpcOptions.setPort(port);
+
+        UFilterPicker::PublisherOptions options;
+        REQUIRE_NOTHROW(options.setGRPCOptions(grpcOptions));
+        REQUIRE_THROWS(options.setMaximumQueueSize(-1));
+        REQUIRE_THROWS(options.setMaximumQueueSize(0));
+        REQUIRE_NOTHROW(options.setMaximumQueueSize(maxQueueSize));
+        
+        const UFilterPicker::PublisherOptions copy{options};
+        REQUIRE(copy.getGRPCOptions().getHost() == host);
+        REQUIRE(copy.getGRPCOptions().getPort() == port);
+        REQUIRE(copy.getMaximumQueueSize() == maxQueueSize);
+    }
 }

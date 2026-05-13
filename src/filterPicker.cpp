@@ -50,6 +50,8 @@
 #include "uFilterPicker/detector.hpp"
 #include "uFilterPicker/subscriber.hpp"
 #include "uFilterPicker/subscriberOptions.hpp"
+#include "uFilterPicker/publisher.hpp"
+#include "uFilterPicker/publisherOptions.hpp"
 #include "uFilterPicker/metrics.hpp"
 /*
 #include "uFilterPicker/pipeline.hpp"
@@ -89,7 +91,7 @@ class Detector
 public:
     Detector(const UDataPacketServiceAPI::V1::StreamIdentifier &identifier,
              std::shared_ptr<spdlog::logger> logger) :
-        mIdentifier(identifier), 
+        mIdentifier(identifier),
         mIdentifierString(UFilterPicker::Utilities::toString(identifier)),
         mLogger(std::move(logger))
     {
@@ -372,6 +374,7 @@ if (np > 1000){
         assert(mPacketSubscriber != nullptr);
 #endif
         mKeepRunning.store(true);
+        //mPickPublisherFuture = mPickPublisher->start();
         mPacketSubscriptionFuture = mPacketSubscriber->start();
         mDataProcessingFuture = std::async(&NetworkDetector::filterPackets, this);
         handleMainThread();
@@ -448,6 +451,23 @@ if (np > 1000){
     bool checkFuturesOkay(const std::chrono::milliseconds &timeOut)
     {
         bool isOkay{true};
+/*
+        try
+        {
+            auto status = mPickPublisherFuture.wait_for(timeOut);
+            if (status == std::future_status::ready)
+            {
+                mPickPublisherFuture.get();
+            }
+        }
+        catch (const std::exception &e) 
+        {
+            SPDLOG_LOGGER_CRITICAL(mLogger,
+                                   "Fatal error in publisher: {}",
+                                   std::string {e.what()});
+            isOkay = false;
+        }
+*/
         try
         {
             auto status = mPacketSubscriptionFuture.wait_for(timeOut);
@@ -499,7 +519,8 @@ if (np > 1000){
     UFilterPicker::Options::ProgramOptions mOptions;
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
     std::unique_ptr<UFilterPicker::Subscriber> mPacketSubscriber{nullptr};
-    std::function<void(UDataPacketServiceAPI::V1::Packet &&)>
+    std::unique_ptr<UFilterPicker::Publisher> mPickPublisher{nullptr};
+    std::function<void (UDataPacketServiceAPI::V1::Packet &&)>
         mImportCallback
     {   
         std::bind(&::NetworkDetector::getPacket, this,
@@ -510,8 +531,12 @@ if (np > 1000){
         std::string,
         std::unique_ptr<UFilterPicker::Picker>
     > mPickers;
-    oneapi::tbb::concurrent_bounded_queue<UDataPacketServiceAPI::V1::Packet> mImportQueue;
+    oneapi::tbb::concurrent_bounded_queue
+    <
+        UDataPacketServiceAPI::V1::Packet
+    > mImportQueue;
     std::future<void> mPacketSubscriptionFuture;
+    std::future<void> mPickPublisherFuture;
     std::future<void> mDataProcessingFuture;
     std::atomic<bool> mKeepRunning{true};
     mutable std::mutex mStopMutex;

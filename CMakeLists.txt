@@ -105,6 +105,8 @@ set(LIBRARY_SRC
     src/detector.cpp
     src/grpcClientOptions.cpp
     src/subscriberOptions.cpp
+    src/publisher.cpp
+    src/publisherOptions.cpp
     src/version.cpp
     src/utilities.cpp 
     src/metrics.cpp)
@@ -116,10 +118,10 @@ set(IMPORT_PROTO_SRC
     uDataPacketServiceAPI/v1/subscription_request.proto
     uDataPacketServiceAPI/v1/broadcast.proto)
 set(EXPORT_PROTO_SRC
-    uFilterPickerMessageStoreAPI/v1/stream_identifier.proto
-    uFilterPickerMessageStoreAPI/v1/phase_hint.proto
-    uFilterPickerMessageStoreAPI/v1/pick.proto
-    uFilterPickerMessageStoreAPI/v1/algorithm.proto
+    uFilterPickerPickBrokerAPI/v1/stream_identifier.proto
+    uFilterPickerPickBrokerAPI/v1/phase_hint.proto
+    uFilterPickerPickBrokerAPI/v1/pick.proto
+    uFilterPickerPickBrokerAPI/v1/algorithm.proto
     )   
 set(LIBRARY_HEADER_FILES 
     include/uFilterPicker/characteristicFunction.hpp
@@ -130,6 +132,8 @@ set(LIBRARY_HEADER_FILES
     include/uFilterPicker/picker.hpp
     include/uFilterPicker/pickerOptions.hpp
     include/uFilterPicker/pipeline.hpp
+    include/uFilterPicker/subscriber.hpp
+    include/uFilterPicker/subscriberOptions.hpp
     include/uFilterPicker/thresholdTrigger.hpp
     include/uFilterPicker/grpcClientOptions.hpp
     include/uFilterPicker/subscriberOptions.hpp
@@ -273,10 +277,10 @@ if (PROJECT_IS_TOP_LEVEL AND ${BUILD_TESTS})
                   testing/picker.cpp
                   testing/grpc.cpp
                   uDataPacketServiceAPI/v1/packet.proto
-                  uFilterPickerMessageStoreAPI/v1/stream_identifier.proto
-                  uFilterPickerMessageStoreAPI/v1/phase_hint.proto
-                  uFilterPickerMessageStoreAPI/v1/pick.proto
-                  uFilterPickerMessageStoreAPI/v1/algorithm.proto
+                  uFilterPickerPickBrokerAPI/v1/stream_identifier.proto
+                  uFilterPickerPickBrokerAPI/v1/phase_hint.proto
+                  uFilterPickerPickBrokerAPI/v1/pick.proto
+                  uFilterPickerPickBrokerAPI/v1/algorithm.proto
    )
    set_target_properties(unitTests PROPERTIES
                          CXX_STANDARD 23
