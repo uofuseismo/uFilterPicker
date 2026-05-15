@@ -1,3 +1,4 @@
+#include <atomic>
 #include <cctype>
 #include <string>
 #include <cstdint>
@@ -101,4 +102,14 @@ MetricsSingleton::getPicksCounters() const noexcept
 void UFilterPicker::Metrics::initializeSingleton()
 {
     MetricsSingleton::getInstance();
+}
+
+void MetricsSingleton::incrementPicksSentCounter()
+{
+    mPicksSentCounter.fetch_add(1, std::memory_order_relaxed);
+}
+
+int64_t MetricsSingleton::getPicksSentCount() const noexcept
+{
+    return mPicksSentCounter.load(std::memory_order_relaxed);
 }

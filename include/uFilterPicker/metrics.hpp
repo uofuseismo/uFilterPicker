@@ -1,5 +1,6 @@
 #ifndef UFILTER_PICKER_METRICS_HPP
 #define UFILTER_PICKER_METRICS_HPP
+#include <atomic>
 #include <string>
 #include <map>
 #include <mutex>
@@ -28,10 +29,15 @@ public:
     /// @brief Gets the current resets corresponding to each key.
     std::map<std::string, int64_t> getDetectorResetsCounters() const noexcept;
 
-    /// @brief Incmrements the number of times a pick is made for the corresponding key.
+    /// @brief Increments the number of times a pick is made for the corresponding key.
     void incrementPicksCounter(const std::string &key, int nPicks = 1);
     /// @reuslt The number of picks for each key.
     std::map<std::string, int64_t> getPicksCounters() const noexcept;
+
+    /// @brief Increments the number of picks sent to the broker.
+    void incrementPicksSentCounter();
+    /// @result The current number of picks sent to the broker.
+    [[nodiscard]] int64_t getPicksSentCount() const noexcept;
 
     /// @brief Resets the counters and clears maps.  This is useful for unit tests.
     void resetCounters();
@@ -40,6 +46,7 @@ private:
     ~MetricsSingleton() = default;
     std::map<std::string, int64_t> mResetsCounterMap;
     std::map<std::string, int64_t> mPicksCounterMap;
+    std::atomic<int64_t> mPicksSentCounter{0};
     mutable std::mutex mMutex;
 };
 

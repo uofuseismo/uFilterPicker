@@ -3,6 +3,7 @@
 #include <memory>
 #include <cstddef>
 #include <csignal>
+#include <condition_variable>
 #include <iostream>
 #include <cstdint>
 #include <optional>
@@ -43,6 +44,8 @@
 //#include <uDataPacketImport/grpc/clientOptions.hpp>
 #include <uDataPacketServiceAPI/v1/stream_identifier.pb.h>
 #include <uDataPacketServiceAPI/v1/data_type.pb.h>
+#include <uFilterPickerPickBrokerAPI/v1/pick.pb.h>
+#include <uFilterPickerPickBrokerAPI/v1/stream_identifier.pb.h>
 //#include <readerwriterqueue.h>
 #include "uFilterPicker/picker.hpp"
 #include "uFilterPicker/pickerOptions.hpp"
@@ -105,14 +108,23 @@ public:
     {
         return mIdentifierString;
     }
-    [[nodiscard]] std::optional<UDataPacketServiceAPI::V1::Packet>
+    [[nodiscard]] std::pair
+    <
+        std::optional<UDataPacketServiceAPI::V1::Packet>,
+        std::vector<UFilterPickerPickBrokerAPI::V1::Pick>
+    >
         apply(const UDataPacketServiceAPI::V1::Packet &packet)
     {
         return this->operator()(packet);
     }
-    [[nodiscard]] std::optional<UDataPacketServiceAPI::V1::Packet>
+    [[nodiscard]] std::pair
+    <
+        std::optional<UDataPacketServiceAPI::V1::Packet>,
+        std::vector<UFilterPickerPickBrokerAPI::V1::Pick>
+    >
         operator()(const UDataPacketServiceAPI::V1::Packet &packet)
     {
+        std::vector<UFilterPickerPickBrokerAPI::V1::Pick> picks;
         // Apply to the packet
         if (UFilterPicker::Utilities::toString(packet) != mIdentifierString)
         {
@@ -120,7 +132,7 @@ public:
                                "Inconsistent identifier - {} does not match {}",
                                UFilterPicker::Utilities::toString(packet),
                                mIdentifierString);
-            return std::nullopt;
+            return std::pair {std::nullopt, picks};
         }
         auto samplingRate = packet.sampling_rate();
         try
@@ -164,7 +176,7 @@ public:
                     mLastSampleTime.count()*1.e-6,
                     UFilterPicker::Utilities::toString(packet),
                     mIdentifierString);
-                return std::nullopt;
+                return std::pair {std::nullopt, picks};
             }
             if (packetStartTime - mLastSampleTime > mGapTolerance)
             {
@@ -180,28 +192,39 @@ public:
         auto characteristicFunction = mDetector->apply(data);
         //auto triggerSignal = mTrigger->apply(characteristicFunction);
         mLastSampleTime = packetEndTime;
-        UDataPacketServiceAPI::V1::Packet result;
-        *result.mutable_stream_identifier() = mIdentifier;
+        UDataPacketServiceAPI::V1::Packet cfPacket;
+        *cfPacket.mutable_stream_identifier() = mIdentifier;
         auto shiftedPacketStartTime = packetStartTime - mFilterGroupDelay;
         auto shiftedStartTimeProtobuf 
             = google::protobuf::util::TimeUtil::MicrosecondsToTimestamp(
                  shiftedPacketStartTime.count());
-        *result.mutable_start_time() = shiftedStartTimeProtobuf;
-        result.set_sampling_rate(samplingRate);
-        result.set_data_type(UDataPacketServiceAPI::V1::DataType::DATA_TYPE_DOUBLE);
-        //*result.mutable_data() = characteristicFunction;
+        *cfPacket.mutable_start_time() = shiftedStartTimeProtobuf;
+        cfPacket.set_sampling_rate(samplingRate);
+        cfPacket.set_data_type(UDataPacketServiceAPI::V1::DataType::DATA_TYPE_DOUBLE);
+        //*cfPacket.mutable_data() = characteristicFunction;
         auto endTime
             = UFilterPicker::Utilities::getEndTime<std::chrono::microseconds>
-              (result);
+              (cfPacket);
         if (endTime - mFirstSampleTime > mBurnInTime &&
             endTime - mFirstSampleTime > mFilterGroupDelay)
         {
-            auto picks = mTrigger->apply(characteristicFunction,
-                                         shiftedPacketStartTime,
-                                         samplingRate);
-            return std::optional<UDataPacketServiceAPI::V1::Packet> (result);
+            auto pickTimes = mTrigger->apply(characteristicFunction,
+                                             shiftedPacketStartTime,
+                                             samplingRate);
+            for (const auto &pickTime : pickTimes)
+            {
+                UFilterPickerPickBrokerAPI::V1::Pick pick;
+                *pick.mutable_time()
+                     = google::protobuf::util::TimeUtil::MicrosecondsToTimestamp(pickTime.count()); 
+                //picks.push_back(pick);
+            }
+            return std::pair
+            {
+                std::optional<UDataPacketServiceAPI::V1::Packet> (cfPacket),
+                std::move(picks)
+            };
         }
-        return std::nullopt;
+        return std::pair{std::nullopt, picks};
     }
 
     Detector(const Detector &) = delete;
@@ -210,6 +233,7 @@ public:
     Detector& operator=(Detector &&) noexcept = delete;
 
     UDataPacketServiceAPI::V1::StreamIdentifier mIdentifier;
+    UFilterPickerPickBrokerAPI::V1::StreamIdentifier mOutputStreamIdentifier;
     std::string mIdentifierString;
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
     double mNominalSamplingRate{100}; 
@@ -242,6 +266,11 @@ public:
         mPacketSubscriber
             = std::make_unique<UFilterPicker::Subscriber> 
               (options.packetSubscriberOptions, mImportCallback, mLogger);
+
+        // Create a pubilsher
+        mPickPublisher
+            = std::make_unique<UFilterPicker::Publisher>
+              (options.pickPublisherOptions, mLogger);
 
         // Create some detectors
         for (const auto &streamIdentifier :
@@ -306,11 +335,12 @@ int np{0};
             {
 np++;
 if (np > 1000){
- spdlog::warn("Terminating");
+ SPDLOG_LOGGER_WARN(mLogger, "Terminating");
  std::raise(SIGINT);
 }
                 try
                 {
+                    // Find the appropriate detector (and if necessary add it)
                     auto streamName = UFilterPicker::Utilities::toString(packet);
                     auto idx = mPickers.find(streamName);
                     if (idx == mPickers.end())
@@ -374,9 +404,10 @@ if (np > 1000){
         assert(mPacketSubscriber != nullptr);
 #endif
         mKeepRunning.store(true);
-        //mPickPublisherFuture = mPickPublisher->start();
+        mPickPublisherFuture = mPickPublisher->start();
         mPacketSubscriptionFuture = mPacketSubscriber->start();
-        mDataProcessingFuture = std::async(&NetworkDetector::filterPackets, this);
+        mDataProcessingFuture
+            = std::async(&NetworkDetector::filterPackets, this);
         handleMainThread();
     }
 
@@ -389,6 +420,11 @@ if (np > 1000){
             mPacketSubscriber->stop();
         }
         std::this_thread::sleep_for(std::chrono::milliseconds {15});
+        if (mPickPublisher)
+        {
+            mPickPublisher->stop();
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds {15});
         if (mDataProcessingFuture.valid())
         {
             mDataProcessingFuture.get();
@@ -396,6 +432,10 @@ if (np > 1000){
         if (mPacketSubscriptionFuture.valid())
         {
             mPacketSubscriptionFuture.get();
+        }
+        if (mPickPublisherFuture.valid())
+        {
+            mPickPublisherFuture.get();
         }
     }
 
@@ -451,7 +491,6 @@ if (np > 1000){
     bool checkFuturesOkay(const std::chrono::milliseconds &timeOut)
     {
         bool isOkay{true};
-/*
         try
         {
             auto status = mPickPublisherFuture.wait_for(timeOut);
@@ -467,7 +506,6 @@ if (np > 1000){
                                    std::string {e.what()});
             isOkay = false;
         }
-*/
         try
         {
             auto status = mPacketSubscriptionFuture.wait_for(timeOut);
@@ -496,6 +534,22 @@ if (np > 1000){
         {
             SPDLOG_LOGGER_CRITICAL(mLogger,
                                    "Fatal error in processing: {}",
+                                   std::string {e.what()});
+            isOkay = false;
+        }
+
+        try
+        {
+            auto status = mPickPublisherFuture.wait_for(timeOut);
+            if (status == std::future_status::ready)
+            {
+                mPickPublisherFuture.get();
+            }
+        }
+        catch (const std::exception &e) 
+        {
+            SPDLOG_LOGGER_CRITICAL(mLogger,
+                                   "Fatal error in pick publishing: {}",
                                    std::string {e.what()});
             isOkay = false;
         }

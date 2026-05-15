@@ -146,8 +146,8 @@ ThresholdTrigger::~ThresholdTrigger() = default;
 
 std::vector<std::chrono::microseconds>
 ThresholdTrigger::apply(const std::vector<double> &characteristicFunction,
-                     const std::chrono::microseconds &packetStartTime,
-                     const double packetSamplingRate)
+                        const std::chrono::microseconds &packetStartTime,
+                        const double packetSamplingRate)
 {
     auto xCopy = characteristicFunction;
     return apply(std::move(xCopy), packetStartTime, packetSamplingRate);
