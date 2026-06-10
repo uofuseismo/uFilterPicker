@@ -196,6 +196,7 @@ struct ProgramOptions
     //NOLINTEND(misc-include-cleaner)
     std::string applicationName{APPLICATION_NAME}; 
     //std::vector<UDataPacketServiceAPI::V1::StreamIdentifier> streamIdentifiers;
+    std::chrono::minutes printSummaryInterval{std::chrono::minutes {15}};
     int verbosity{3};
     bool exportLogs{false};
     bool exportLogsWithHTTP{true};
@@ -261,6 +262,14 @@ ProgramOptions parseIniFile(const std::filesystem::path &iniFile)
     }   
     options.verbosity
         = propertyTree.get<int> ("General.verbosity", options.verbosity);
+
+    auto summaryIntervalInMinutes
+        = static_cast<int> (options.printSummaryInterval.count());
+    summaryIntervalInMinutes
+        = propertyTree.get<int> ("General.printSummaryIntervalInMinutes",
+                                 summaryIntervalInMinutes);
+    options.printSummaryInterval 
+        = std::chrono::minutes {summaryIntervalInMinutes};
 
     // Logging
     options.exportLogs = false;

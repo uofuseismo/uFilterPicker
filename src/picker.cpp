@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <exception>
 #include <spdlog/spdlog.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/stdout_color_sinks.h> //NOLINT
 #include <uDataPacketServiceAPI/v1/stream_identifier.pb.h>
 #include <uDataPacketServiceAPI/v1/packet.pb.h>
 #include <uFilterPickerPickBrokerAPI/v1/pick.pb.h>
@@ -112,6 +112,7 @@ public:
         mGapToleranceInSamples = mOptions.getGapTolerance();
         mFilterGroupDelay = mDetector->getGroupDelay();
         mBurnInTime = mFilterGroupDelay*mOptions.getBurnInFactor();
+        mOutputPicks.reserve(16);
         mInitialized = true;
         SPDLOG_LOGGER_INFO(mLogger,
                            "Made detector for {}",
@@ -276,6 +277,7 @@ public:
  
         if (runTrigger)
         {
+            mOutputPicks.clear();
             //if (endTime - mFirstSampleTime > mBurnInTime &&
             //    endTime - mFirstSampleTime > mFilterGroupDelay)
             auto picks = mTrigger->apply(characteristicFunction,
@@ -285,10 +287,12 @@ public:
             {
                 for (const auto &pick : picks)
                 {
-                    auto p2 = Utilities::toPPick(pick, mPickIdentifier, mAlgorithm);
+                    auto pPick
+                        = Utilities::toPPick(pick, mPickIdentifier, mAlgorithm);
+                    mOutputPicks.push_back(std::move(pPick));
                 }
-std::cout << "Made a pick" << std::endl;
                 auto nPicks = static_cast<int> (picks.size());
+                SPDLOG_LOGGER_DEBUG(mLogger, "Made {} picks", nPicks);
                 mMetrics.incrementPicksCounter(mMetricsKeyName, nPicks);
             }
             //return std::optional<UDataPacketServiceAPI::V1::Packet> (result);
@@ -313,6 +317,7 @@ std::cout << "Made a pick" << std::endl;
     std::chrono::microseconds mMaxFutureTime{std::chrono::seconds {0}};
     std::chrono::microseconds mMaxLatency{std::chrono::minutes {5}};
     std::chrono::microseconds mBurnInTime{std::chrono::seconds {10}};
+    std::vector<UFilterPickerPickBrokerAPI::V1::Pick> mOutputPicks;
     double mNominalSamplingRate{0};
     double mLastSamplingRate{0};
     int mGapToleranceInSamples{0};
@@ -366,3 +371,7 @@ void Picker::apply(const UDataPacketServiceAPI::V1::Packet &packet)
     pImpl->apply(packet);
 }
 
+std::vector<UFilterPickerPickBrokerAPI::V1::Pick> Picker::getPicks() const
+{
+    return pImpl->mOutputPicks;
+}

@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <optional>
 #include <algorithm>
+#include <vector>
 #include <utility>
 #include <limits>
 #include <functional>
@@ -38,6 +39,7 @@
 #include <boost/property_tree/ini_parser.hpp>
 */
 #include <spdlog/spdlog.h>
+#include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h> 
 #include <uDataPacketServiceAPI/v1/packet.pb.h>
 //#include <uDataPacketImport/grpc/client.hpp>
@@ -56,6 +58,7 @@
 #include "uFilterPicker/publisher.hpp"
 #include "uFilterPicker/publisherOptions.hpp"
 #include "uFilterPicker/metrics.hpp"
+#include "uFilterPicker/version.hpp"
 /*
 #include "uFilterPicker/pipeline.hpp"
 #include "uFilterPicker/characteristicFunction.hpp"
@@ -82,6 +85,14 @@ std::atomic_bool mInterrupted{false};
 namespace
 {
 
+opentelemetry::nostd::shared_ptr<opentelemetry::metrics::ObservableInstrument>
+    picksCounter;
+opentelemetry::nostd::shared_ptr<opentelemetry::metrics::ObservableInstrument>
+    resetsCounter;
+
+
+/*
+
 struct DetectorPicker
 {
     std::unique_ptr<UFilterPicker::Detector> detector{nullptr};
@@ -101,6 +112,9 @@ public:
         mDetector = UFilterPicker::Detector::create100HzBroadband();
         mTrigger = UFilterPicker::ThresholdTrigger::create100HzBroadband();
         mFilterGroupDelay = mDetector->getGroupDelay();
+        mAlgorithm.set_name("uFilterPicker"); 
+        mAlgorithm.set_version(UFilterPicker::Version::getVersion());
+        mAlgorithm.set_tag(UFilterPicker::Version::getTag());
         mInitialized = mDetector->isInitialized();
         SPDLOG_LOGGER_INFO(mLogger, "Made detector for {}", mIdentifierString);
     }
@@ -201,7 +215,7 @@ public:
         *cfPacket.mutable_start_time() = shiftedStartTimeProtobuf;
         cfPacket.set_sampling_rate(samplingRate);
         cfPacket.set_data_type(UDataPacketServiceAPI::V1::DataType::DATA_TYPE_DOUBLE);
-        //*cfPacket.mutable_data() = characteristicFunction;
+        // *cfPacket.mutable_data() = characteristicFunction;
         auto endTime
             = UFilterPicker::Utilities::getEndTime<std::chrono::microseconds>
               (cfPacket);
@@ -213,10 +227,12 @@ public:
                                              samplingRate);
             for (const auto &pickTime : pickTimes)
             {
-                UFilterPickerPickBrokerAPI::V1::Pick pick;
-                *pick.mutable_time()
-                     = google::protobuf::util::TimeUtil::MicrosecondsToTimestamp(pickTime.count()); 
-                //picks.push_back(pick);
+                auto pick
+                     = UFilterPicker::Utilities::toPPick(
+                          pickTime,
+                          mOutputStreamIdentifier,
+                          mAlgorithm);
+                picks.push_back(std::move(pick));
             }
             return std::pair
             {
@@ -234,6 +250,7 @@ public:
 
     UDataPacketServiceAPI::V1::StreamIdentifier mIdentifier;
     UFilterPickerPickBrokerAPI::V1::StreamIdentifier mOutputStreamIdentifier;
+    UFilterPickerPickBrokerAPI::V1::Algorithm mAlgorithm;
     std::string mIdentifierString;
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
     double mNominalSamplingRate{100}; 
@@ -247,6 +264,7 @@ public:
     bool mInitialized{false};
     bool mFirstPacket{true};
 };
+*/
 
 class NetworkDetector
 {
@@ -308,15 +326,34 @@ double nominalSamplingRate{100};
         // Setup metrics
         if (mOptions.exportMetrics)
         {
+            // Need a provider from which to get a meter.  This is initialized
+            // once and should last the duration of the application.
+            auto provider
+                = opentelemetry::metrics::Provider::GetMeterProvider();
 
+            // Meter will be bound to application (library, module, class, etc.)
+            // so as to identify who is genreating these metrics.
+            auto meter = provider->GetMeter(mOptions.applicationName, "1.2.0");
+
+            // Picks received
+            picksCounter
+                = meter->CreateInt64ObservableCounter(
+                  "seismic_processing.detection.ufilter_picker.picks",
+                  "Number of picks made by the detector for the given stream",
+                  "{count}");
+            picksCounter->AddCallback(
+                UFilterPicker::Metrics::observePicks,
+                nullptr);
+
+            resetsCounter
+                = meter->CreateInt64ObservableCounter(
+                  "seismic_processing.detection.ufilter_picker.detector_resets",
+                  "Number of times the detector for the given stream has been reset (likely because of gaps)",
+                  "{count}");
+            resetsCounter->AddCallback(
+                UFilterPicker::Metrics::observeDetectorResets,
+                nullptr);
         }
-/*
-        mStreamsToProcess = options.streamIdentifiers;
-        clientOptions.setStreamSelections(options.streamIdentifiers);
-        mImportClient
-            = std::make_unique<UDataPacketImport::GRPC::Client>
-              (mImportCallback, clientOptions); 
-*/
     }
 
     void publishCharacteristicFunctions()
@@ -326,18 +363,20 @@ double nominalSamplingRate{100};
     void filterPackets()
     {
         constexpr std::chrono::milliseconds timeOut{10};
-int np{0};
+//int np{0};
         while (mKeepRunning)
         {
             UDataPacketServiceAPI::V1::Packet packet;
             auto gotPacket = mImportQueue.try_pop(packet);
             if (gotPacket)
             {
+/*
 np++;
-if (np > 1000){
+if (np > 2000){
  SPDLOG_LOGGER_WARN(mLogger, "Terminating");
  std::raise(SIGINT);
 }
+*/
                 try
                 {
                     // Find the appropriate detector (and if necessary add it)
@@ -358,6 +397,11 @@ if (np > 1000){
                         continue;
                     }
                     idx->second->apply(packet); 
+                    auto picks = idx->second->getPicks();
+                    for (auto &pick : picks)
+                    {
+                        mPickPublisher->enqueue(std::move(pick));
+                    }
                  }
                  catch (const std::exception &e)
                  {
@@ -482,7 +526,24 @@ if (np > 1000){
     /// @brief Prints an update
     void printSummary()
     {
-
+        if (mOptions.printSummaryInterval.count() <= 0){return;}
+        const auto now = 
+            std::chrono::duration_cast<std::chrono::seconds>
+            ((std::chrono::high_resolution_clock::now()).time_since_epoch());
+        if (now < mLastReport + mOptions.printSummaryInterval){return;}
+        mLastReport = now; 
+ 
+        auto &metrics = UFilterPicker::Metrics::MetricsSingleton::getInstance();
+        auto nPicks = metrics.sumPicks();
+        auto nResets =  metrics.sumDetectorResets();
+        auto nPicksReport = nPicks - mPicksLastReport;
+        auto nResetsReport = nResets - mDetectorResetsLastReport;
+        SPDLOG_LOGGER_INFO(mLogger,
+                           "{} picks made and {} detector resets since last report",
+                           nPicksReport,
+                           nResetsReport);
+        mPicksLastReport = nPicks;
+        mDetectorResetsLastReport = nResets;
     }
 
     /// @brief Checks the futures
@@ -595,6 +656,13 @@ if (np > 1000){
     std::atomic<bool> mKeepRunning{true};
     mutable std::mutex mStopMutex;
     std::condition_variable mStopCondition;
+    std::chrono::seconds mLastReport
+    {
+        std::chrono::duration_cast<std::chrono::seconds>
+        ((std::chrono::high_resolution_clock::now()).time_since_epoch())
+    };
+    int64_t mPicksLastReport{0};
+    int64_t mDetectorResetsLastReport{0};
     bool mStopRequested{false};
     size_t mMaximumImportQueueSize{512};
 };

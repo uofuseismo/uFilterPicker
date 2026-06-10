@@ -167,25 +167,52 @@ std::pair<grpc::Status, bool>
     std::unique_ptr
     <
         grpc::ClientWriter<UFilterPickerPickBrokerAPI::V1::Pick>
-    > writer(stub->Publish(&context,  &publishResponse));
+    > writer(stub->Publish(&context, &publishResponse));
 #ifndef NDEBUG
     assert(writer != nullptr);
 #endif
+    constexpr int checkStateEvery{15};
+    int checkStateCounter{0};
     while (keepRunning->load())
     {
         UFilterPickerPickBrokerAPI::V1::Pick pick;
         if (exportQueue->try_pop(pick))
         {
+            SPDLOG_LOGGER_DEBUG(mLogger, "Sending pick");
             if (!writer->Write(pick))
             {
                 SPDLOG_LOGGER_WARN(logger, "Broken stream");
                 break;
             }
+            checkStateCounter = 0;
             hadSuccessfulWrite = true;
             mMetrics.incrementPicksSentCounter();
         }
         else
         {
+            ++checkStateCounter;
+            if (checkStateCounter >= checkStateEvery)
+            {
+                auto state = channel->GetState(false);
+                if (state != grpc_connectivity_state::GRPC_CHANNEL_READY)
+                {
+                    if (state == grpc_connectivity_state::GRPC_CHANNEL_SHUTDOWN)
+                    {
+                        SPDLOG_LOGGER_WARN(logger, "Channel was shutdown");
+                    }
+                    else if (state ==
+                             grpc_connectivity_state::GRPC_CHANNEL_IDLE)
+                    {
+                        SPDLOG_LOGGER_WARN(logger, "Channel is idle");
+                    }
+                    else
+                    {
+                        SPDLOG_LOGGER_WARN(logger, "Channel is bad state");
+                    }
+                    break;
+                }
+                checkStateCounter = 0;
+            }
             std::this_thread::sleep_for(timeOut);
         }
     }
@@ -243,7 +270,7 @@ public:
 
     void enqueue(UFilterPickerPickBrokerAPI::V1::Pick &&pick)
     {
-        int nPicksPurged;
+        int nPicksPurged{0};
         while (static_cast<int> (mExportQueue.size()) >=
                std::max(0, mMaximumQueueSize - 1))
         {
@@ -284,6 +311,9 @@ public:
             if (!mKeepRunning.load()){break;}
             if (kReconnect >= 0)
             {
+                SPDLOG_LOGGER_INFO(mLogger,
+                    "Will reconnect in {} milliseconds",
+                    std::to_string(reconnectSchedule.at(kReconnect).count()));
                 isReconnect = true;
                 std::unique_lock<std::mutex> lock(mShutdownMutex);
                 mShutdownCondition.wait_for(lock,

@@ -113,3 +113,29 @@ int64_t MetricsSingleton::getPicksSentCount() const noexcept
 {
     return mPicksSentCounter.load(std::memory_order_relaxed);
 }
+
+int64_t MetricsSingleton::sumDetectorResets() const noexcept
+{
+    int64_t result{0};
+    {
+    const std::lock_guard<std::mutex> lock(mMutex);
+    for (const auto &item : mResetsCounterMap)
+    {
+        result = result + item.second;
+    }
+    }
+    return result;
+}
+
+int64_t MetricsSingleton::sumPicks() const noexcept
+{
+    int64_t result{0};
+    {
+    const std::lock_guard<std::mutex> lock(mMutex);
+    for (const auto &item : mPicksCounterMap)
+    {
+        result = result + item.second;
+    }
+    }
+    return result;
+}

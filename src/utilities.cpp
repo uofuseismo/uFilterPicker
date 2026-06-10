@@ -360,7 +360,7 @@ int UFilterPicker::Utilities::getGapSizeInSamples(
         return sign*std::max(0, t1Estimates.at(0).second - 1);
     }
     // Do it the hard way
-    std::cerr << " Hard way " << std::endl;
+    std::cerr << " Hard way " << "\n";
     auto t1Estimate = t0 + (gapSamples + 1)*samplingPeriodMuS;
     bool success{false};
     for (int k = 0; k < std::numeric_limits<int>::max(); ++k)

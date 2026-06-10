@@ -13,6 +13,13 @@ namespace UDataPacketServiceAPI
   class StreamIdentifier;
  }
 }
+namespace UFilterPickerPickBrokerAPI
+{
+ namespace V1
+ {
+  class Pick;
+ }
+}
 namespace UFilterPicker
 {
  class PickerOptions;
@@ -43,6 +50,9 @@ public:
 
     void apply(const UDataPacketServiceAPI::V1::Packet &packet);
     void apply(UDataPacketServiceAPI::V1::Packet &&packet);
+
+    /// @result The picks made in the last apply.
+    [[nodiscard]] std::vector<UFilterPickerPickBrokerAPI::V1::Pick> getPicks() const;
 
     /// @result The picker's identifier string.
     [[nodiscard]] std::string getIdentifierString() const;

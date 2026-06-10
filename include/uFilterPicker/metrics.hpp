@@ -27,12 +27,16 @@ public:
     /// @brief Increments the number of times a detector is reset.
     void incrementDetectorResetsCounter(const std::string &key);
     /// @brief Gets the current resets corresponding to each key.
-    std::map<std::string, int64_t> getDetectorResetsCounters() const noexcept;
+    [[nodiscard]] std::map<std::string, int64_t> getDetectorResetsCounters() const noexcept;
+    /// @result Cumulative number of detector resets.
+    [[nodiscard]] int64_t sumDetectorResets() const noexcept;
 
     /// @brief Increments the number of times a pick is made for the corresponding key.
     void incrementPicksCounter(const std::string &key, int nPicks = 1);
     /// @reuslt The number of picks for each key.
-    std::map<std::string, int64_t> getPicksCounters() const noexcept;
+    [[nodiscard]] std::map<std::string, int64_t> getPicksCounters() const noexcept;
+    /// @result Cumulative number of picks.
+    [[nodiscard]] int64_t sumPicks() const noexcept; 
 
     /// @brief Increments the number of picks sent to the broker.
     void incrementPicksSentCounter();
