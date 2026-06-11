@@ -14,6 +14,7 @@
 #include <functional>
 #include <stdexcept>
 #include <exception>
+#include <stdlib.h>
 #include <sstream>
 #include <string>
 #include <chrono>
@@ -279,6 +280,7 @@ public:
             //NOLINTNEXTLINE(misc-include-cleaner)
             mLogger = spdlog::stdout_color_st("console");
         }
+        mMaximumImportQueueSize = mOptions.maximumImportQueueSize;
 
         // Create a subscriber
         mPacketSubscriber
@@ -664,7 +666,7 @@ if (np > 2000){
     int64_t mPicksLastReport{0};
     int64_t mDetectorResetsLastReport{0};
     bool mStopRequested{false};
-    size_t mMaximumImportQueueSize{512};
+    size_t mMaximumImportQueueSize{4096};
 };
 
 }
@@ -716,6 +718,13 @@ int main(int argc, char *argv[])
                                "Failed to read program options because {}",
                                std::string {e.what()});
         return EXIT_FAILURE;
+    }
+    if (getenv("OTEL_SERVICE_NAME") == nullptr)
+    {
+        constexpr int overwrite{1};
+        setenv("OTEL_SERVICE_NAME",
+               programOptions.applicationName.c_str(),
+               overwrite);
     }
 
     std::shared_ptr<spdlog::logger> logger{nullptr};

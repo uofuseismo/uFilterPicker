@@ -151,7 +151,7 @@ public:
         if (nSamples < 1)
         {   
             throw std::invalid_argument("No data for "
-                                      + thisIdentifierString);
+                                      + mIdentifierString);
         }   
         // Data
         auto samples = Utilities::toDoubleVector(packet, mSwapBytes);
@@ -164,7 +164,8 @@ public:
             = Utilities::getStartTime<std::chrono::microseconds> (packet);
         if (startTime < now - mMaxLatency)
         {
-            SPDLOG_LOGGER_WARN(mLogger, "Data is too latent - skipping");
+            SPDLOG_LOGGER_WARN(mLogger, "Data is too latent for {} - skipping",
+                               mIdentifierString);
             return;
         }
         const auto endTime

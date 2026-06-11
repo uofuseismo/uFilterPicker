@@ -197,6 +197,7 @@ struct ProgramOptions
     std::string applicationName{APPLICATION_NAME}; 
     //std::vector<UDataPacketServiceAPI::V1::StreamIdentifier> streamIdentifiers;
     std::chrono::minutes printSummaryInterval{std::chrono::minutes {15}};
+    int maximumImportQueueSize{4096}; // Packets
     int verbosity{3};
     bool exportLogs{false};
     bool exportLogsWithHTTP{true};
@@ -413,6 +414,15 @@ ProgramOptions parseIniFile(const std::filesystem::path &iniFile)
         = ::getGRPCClientOptions(propertyTree, "PacketSubscriber");
     options.packetSubscriberOptions.setGRPCOptions(grpcPacketClientOptions);
     options.packetSubscriberOptions.setIdentifier(options.applicationName);
+
+    options.maximumImportQueueSize
+        = propertyTree.get<int> ("PickSubscriber.maximumImportQueueSize",
+                                 options.maximumImportQueueSize);
+    if (options.maximumImportQueueSize < 1)
+    {
+        throw std::invalid_argument(
+           "PickSubscriber.maximumImportQueueSize must be positive");
+    }
 
     // Get the streams to process
     std::vector<UDataPacketServiceAPI::V1::StreamIdentifier> streams;
