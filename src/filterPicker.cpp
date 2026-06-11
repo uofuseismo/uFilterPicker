@@ -302,9 +302,32 @@ public:
                 throw std::invalid_argument("Only HHZ detectors implemented");
             }
             // TODO
+            auto modelKey = UFilterPicker::Options::toModelKey(streamIdentifier);
+            double nominalSamplingRate{100};
+            std::pair<double, double> onOffThreshold{6, 5};
+            if (mOptions.modelOptions.contains(modelKey))
+            {
+                auto modelOptions = mOptions.modelOptions[modelKey];
+                onOffThreshold = modelOptions.onAndOffThreshold;
+                nominalSamplingRate = modelOptions.nominalSamplingRate;
+                SPDLOG_LOGGER_INFO(mLogger,
+                                   "Creating (on,off,df)=({},{},{}) for {}",
+                                   onOffThreshold.first,
+                                   onOffThreshold.second,
+                                   nominalSamplingRate,
+                                   streamName);
+            }
+            else
+            {
+                SPDLOG_LOGGER_INFO(mLogger, "Creating default 100Hz model for {} with (on,off)=({}, {})",
+                                   streamName,
+                                   onOffThreshold.first,
+                                   onOffThreshold.second);
+            }
+ 
             auto detector = UFilterPicker::Detector::create100HzBroadband(); 
-            auto thresholdPicker = UFilterPicker::ThresholdTrigger::create100HzBroadband();
-double nominalSamplingRate{100};
+            auto thresholdPicker = UFilterPicker::ThresholdTrigger::create100HzBroadband(onOffThreshold);
+            //double nominalSamplingRate{100};
             auto picker
                 = std::make_unique<UFilterPicker::Picker>
                   (mOptions.pickerOptions,
@@ -341,8 +364,7 @@ double nominalSamplingRate{100};
             picksCounter
                 = meter->CreateInt64ObservableCounter(
                   "seismic_processing.detection.ufilter_picker.picks",
-                  "Number of picks made by the detector for the given stream",
-                  "{count}");
+                  "Number of picks made by the detector for the given stream");
             picksCounter->AddCallback(
                 UFilterPicker::Metrics::observePicks,
                 nullptr);
@@ -350,8 +372,7 @@ double nominalSamplingRate{100};
             resetsCounter
                 = meter->CreateInt64ObservableCounter(
                   "seismic_processing.detection.ufilter_picker.detector_resets",
-                  "Number of times the detector for the given stream has been reset (likely because of gaps)",
-                  "{count}");
+                  "Number of times the detector for the given stream has been reset (likely because of gaps)");
             resetsCounter->AddCallback(
                 UFilterPicker::Metrics::observeDetectorResets,
                 nullptr);

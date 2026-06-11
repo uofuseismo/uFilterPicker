@@ -8,6 +8,7 @@ module;
 #include <optional>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <string>
 #include <sstream>
 #include <filesystem>
@@ -181,6 +182,13 @@ std::string getOTelCollectorURL(boost::property_tree::ptree &propertyTree,
 namespace UFilterPicker::Options
 {
 
+export 
+struct ModelOptions
+{
+    std::pair<double, double> onAndOffThreshold{6., 5.};
+    double nominalSamplingRate{100};
+};
+
 export
 struct ProgramOptions
 {
@@ -197,6 +205,7 @@ struct ProgramOptions
     std::string applicationName{APPLICATION_NAME}; 
     //std::vector<UDataPacketServiceAPI::V1::StreamIdentifier> streamIdentifiers;
     std::chrono::minutes printSummaryInterval{std::chrono::minutes {15}};
+    std::map<std::string, ModelOptions> modelOptions;
     int maximumImportQueueSize{4096}; // Packets
     int verbosity{3};
     bool exportLogs{false};
@@ -242,6 +251,21 @@ Allowed options)""");
         }
     }   
     return {iniFile, false};
+}
+
+export 
+std::string toModelKey(const UDataPacketServiceAPI::V1::StreamIdentifier &identifier)
+{
+    auto modelName = identifier.network();
+    modelName.append("_");
+    modelName.append(identifier.station());
+    modelName.append("_");
+    modelName.append(identifier.channel());
+    modelName.append("_");
+    modelName.append(identifier.location_code());
+    std::transform(modelName.begin(), modelName.end(),
+                   modelName.begin(), ::toupper);
+    return modelName;
 }
 
 export
@@ -505,6 +529,50 @@ ProgramOptions parseIniFile(const std::filesystem::path &iniFile)
         throw std::invalid_argument("No streams specified");
     }
     options.packetSubscriberOptions.setStreamIdentifiers(streams);
+
+    // For each stream, define the model options
+    for (const auto &stream : streams)
+    {
+        auto modelName = toModelKey(stream);
+        const auto key = "Models." + modelName;
+        auto modelValues
+           = propertyTree.get_optional<std::string> (key);
+        if (modelValues)
+        {
+           // Need to preprocess selector so there's no double spaces
+           for (int k = 1; k < static_cast<int> (modelValues->size()); )
+           {
+               if (modelValues->at(k - 1) == modelValues->at(k) &&
+                   modelValues->at(k) == ' ')
+               {
+                   modelValues->erase(k, 1);
+               }
+               else
+               {
+                   ++k;
+               }
+            }
+            std::vector<std::string> modelValuesSplit;
+            boost::split(modelValuesSplit, *modelValues,
+                         boost::is_any_of(" \n\t"));
+            if (modelValuesSplit.size() == 3)
+            {
+                auto onThreshold = std::stod(modelValuesSplit[0]);
+                auto offThreshold = std::stod(modelValuesSplit[1]);
+                auto samplingRate = std::stod(modelValuesSplit[2]);
+                if (samplingRate <= 0)
+                {
+                    throw std::invalid_argument("Model sampling rate must be positive");
+                }
+                ModelOptions modelOptions
+                {
+                    std::pair {onThreshold, offThreshold},
+                    samplingRate
+                }; 
+                options.modelOptions.insert_or_assign(modelName, modelOptions);
+            }
+        }
+    }
 
     return options;
 }
