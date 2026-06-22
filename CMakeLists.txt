@@ -142,7 +142,11 @@ set(LIBRARY_HEADER_FILES
     include/uFilterPicker/utilities.hpp
     include/uFilterPicker/version.hpp)
 
-add_library(libuFilterPicker STATIC ${LIBRARY_SRC} ${IMPORT_PROTO_SRC} ${EXPORT_PROTO_SRC})
+if (BUILD_SHARED_LIBS)
+   add_library(libuFilterPicker STATIC ${LIBRARY_SRC} ${IMPORT_PROTO_SRC} ${EXPORT_PROTO_SRC})
+else()
+   add_library(libuFilterPicker STATIC ${LIBRARY_SRC} ${IMPORT_PROTO_SRC} ${EXPORT_PROTO_SRC})
+endif()
 add_library(uFilterPicker::libuFilterPicker ALIAS libuFilterPicker)
 set_target_properties(libuFilterPicker PROPERTIES
                       OUTPUT_NAME uFilterPicker
