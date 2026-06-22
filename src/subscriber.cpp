@@ -265,8 +265,12 @@ public:
         }
         if (mLogger == nullptr)
         {
-            //NOLINTNEXTLINE(misc-include-cleaner)
-            mLogger = spdlog::stdout_color_st("subscriber-console");
+            // NOLINTBEGIN(misc-include-cleaner)
+            auto classId
+                = std::to_string (reinterpret_cast<std::uintptr_t> (this));
+            mLogger = spdlog::stdout_color_mt("subscriber-console-"
+                                            + classId);
+            // NOLINTEND(misc-include-cleaner)
         }
         mInitialized = true;
     }

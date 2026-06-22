@@ -33,7 +33,7 @@ public:
     /// @result True indicates the subscriber is initialized.
     [[nodiscard]] bool isInitialized() const noexcept;
 
-    /// @brief starts the acquisition.
+    /// @brief Starts the acquisition.
     [[nodiscard]] std::future<void> start();
 
     /// @brief Stops the acquisition.
